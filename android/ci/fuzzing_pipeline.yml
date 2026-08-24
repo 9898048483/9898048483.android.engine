@@ -1,0 +1,21 @@
+name: DevSecOps Continuous Fuzzing (LibFuzzer + ASAN)
+on:
+  schedule:
+    - cron: '0 2 * * *' # Run nightly at 2 AM
+  push:
+    branches: [ "main" ]
+
+jobs:
+  fuzz-engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build Fuzzers with AddressSanitizer
+        run: |
+          clang++ -g -O1 -fsanitize=fuzzer,address             android/jni/fuzzing/engine_fuzzer.cpp             -o build/engine_fuzzer
+      - name: Run Fuzzer Corpus
+        run: |
+          ./build/engine_fuzzer -max_total_time=3600 -print_final_stats=1 corpus/
+      - name: Analyze ASAN Crash Logs
+        if: failure()
+        run: python3 android/python/fuzz_analyzer.py crash_logs.txt
