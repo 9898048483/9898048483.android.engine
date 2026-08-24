@@ -1,0 +1,82 @@
+name: Unified Release Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  publish-release:
+    name: Aggregate Artifacts & Publish Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Wait for Build Workflows to Complete
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "[*] Polling GitHub API for completion of parallel build workflows on SHA: ${{ github.sha }}"
+          # Block the release job until all sibling workflows triggered by the tag push finish
+          for i in {1..40}; do
+            STATUS=$(gh api repos/${{ github.repository }}/actions/runs --jq ".workflow_runs[] | select(.head_sha==\"${{ github.sha }}\" and .name!=\"Unified Release Pipeline\") | .status" | grep -v "completed" || true)
+            if [ -z "$STATUS" ]; then
+              echo "[+] All parallel build workflows have completed."
+              break
+            fi
+            echo "[-] Workflows still running... waiting 30 seconds (Attempt $i/40)"
+            sleep 30
+          done
+
+      - name: Download Android Artifact
+        uses: dawidd6/action-download-artifact@v3
+        continue-on-error: true
+        with:
+          workflow: build-android.yml
+          commit: ${{ github.sha }}
+          name: android-apk
+          path: release-artifacts/
+
+      - name: Download Linux Artifact
+        uses: dawidd6/action-download-artifact@v3
+        continue-on-error: true
+        with:
+          workflow: build-linux.yml
+          commit: ${{ github.sha }}
+          name: linux-binary
+          path: release-artifacts/
+
+      - name: Download Windows Artifact
+        uses: dawidd6/action-download-artifact@v3
+        continue-on-error: true
+        with:
+          workflow: build-windows.yml
+          commit: ${{ github.sha }}
+          name: windows-binary
+          path: release-artifacts/
+
+      - name: Download macOS Artifact
+        uses: dawidd6/action-download-artifact@v3
+        continue-on-error: true
+        with:
+          workflow: build-macos.yml
+          commit: ${{ github.sha }}
+          name: macos-binary
+          path: release-artifacts/
+
+      - name: Generate Checksums (SHA256)
+        run: |
+          mkdir -p release-artifacts
+          cd release-artifacts
+          sha256sum * > checksums_sha256.txt
+          echo "[*] Generated Checksums:"
+          cat checksums_sha256.txt
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-artifacts/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false
