@@ -17,7 +17,8 @@ import {
   ShieldAlert,
   Globe2,
   Cpu,
-  BatteryMedium
+  BatteryMedium,
+  Server
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -39,7 +40,9 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const tabs = [
     { id: 'pipeline', label: 'CI/CD Pipeline', icon: Terminal, badge: pipelineRunning ? 'Building' : null },
-    { id: 'kivy_gui', label: 'Prompt 12: Kivy GUI Layer', icon: Smartphone, highlight: true },
+    { id: 'fastapi_backend', label: 'Prompt 14: FastAPI Backend', icon: Server, highlight: true },
+    { id: 'local_nlp', label: 'Prompt 13: Local AI NLP Engine', icon: Brain, highlight: true },
+    { id: 'kivy_gui', label: 'Prompt 12: Kivy GUI Layer', icon: Smartphone },
     { id: 'battery_daemon', label: 'Prompt 11: Zero-Touch Battery', icon: BatteryMedium },
     { id: 'ipc_firewall', label: 'Prompt 10: NDK IPC Firewall', icon: Cpu },
     { id: 'telemetry_audit', label: 'Prompt 9: Security Audit', icon: ShieldAlert },

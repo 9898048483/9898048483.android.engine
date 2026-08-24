@@ -477,6 +477,195 @@ export interface ScreenshotCaptureAttemptDTO {
   details: string;
 }
 
+export type NLPIntentType =
+  | 'PANIC_SELF_DESTRUCT'
+  | 'TOR_CIRCUIT_NEW'
+  | 'VAULT_LOCK_DECOY'
+  | 'CRYPTO_KEY_ROTATE'
+  | 'FLAG_SECURE_ENFORCE'
+  | 'BIOMETRIC_REAUTH'
+  | 'BATTERY_DOZE_MODE'
+  | 'AUDIT_SEAL_EXPORT'
+  | 'DISGUISE_APP_CAMOUFLAGE'
+  | 'SYSTEM_HEALTH_PROBE'
+  | 'UNKNOWN_AMBIGUOUS_FALLBACK';
+
+export interface NLPRankedScoreDTO {
+  intent: string;
+  score: number;
+  percentage: number;
+}
+
+export interface NLPClassificationResultDTO {
+  query: string;
+  is_encrypted_command: boolean;
+  intent: NLPIntentType;
+  confidence: number;
+  confidence_percentage: number;
+  is_confident?: boolean;
+  threshold_applied?: number;
+  description: string;
+  parameters: Record<string, any>;
+  tokens: string[];
+  scores_ranked: NLPRankedScoreDTO[];
+  latency_ms: number;
+  offline_verified: boolean;
+  zero_leak_seal: string;
+}
+
+export interface NLPEngineStateDTO {
+  engineInitialized: boolean;
+  vocabularySize: number;
+  intentClassesCount: number;
+  modelType: string;
+  matrixBackend: 'NumPy Vectorized (NDArray)' | 'C-Accelerated Math Fallback';
+  zeroLeakAirGapVerified: boolean;
+  averageInferenceLatencyMs: number;
+  totalClassificationsProcessed: number;
+  confidenceThreshold: number;
+  lastExecutedAction?: string;
+}
+
+export interface NLPEngineQueryLogDTO {
+  id: string;
+  timestamp: string;
+  rawInput: string;
+  intent: string;
+  confidencePct: number;
+  latencyMs: number;
+  encrypted: boolean;
+  status: 'EXECUTED_LOCALLY' | 'DISPATCHED_TO_ENGINE' | 'REQUIRES_CONFIRMATION' | 'FALLBACK_TRIGGERED';
+  actionSummary: string;
+}
+
+// ==============================================================================
+// Prompt 14: Async FastAPI Micro-Backend Engine DTOs
+// ==============================================================================
+
+export interface ZeroTouchAuthRequestDTO {
+  device_id: string;
+  tee_attestation_nonce: string;
+  touchless_liveness_score: number;
+  behavioral_entropy_bits: number;
+  requested_scope: string;
+}
+
+export interface ZeroTouchAuthResponseDTO {
+  access_token: string;
+  token_type: string;
+  expires_in_seconds: number;
+  issued_at_utc: string;
+  session_id: string;
+  authorized_subsystems: string[];
+  tor_onion_bound: boolean;
+}
+
+export interface ContextPayloadEncryptRequestDTO {
+  plaintext: string;
+  cipher_algorithm: 'AES-256-GCM' | 'CHACHA20-POLY1305';
+  behavioral_context_salt?: string;
+  key_id?: string;
+}
+
+export interface ContextPayloadEncryptResponseDTO {
+  ciphertext_base64: string;
+  nonce_hex: string;
+  auth_tag_hex: string;
+  cipher_algorithm: string;
+  entropy_bits_applied: number;
+  key_id: string;
+  encryption_latency_ms: number;
+  zero_leak_verified: boolean;
+}
+
+export interface PayloadDecryptRequestDTO {
+  ciphertext_base64: string;
+  nonce_hex: string;
+  auth_tag_hex: string;
+  cipher_algorithm: string;
+  behavioral_context_salt?: string;
+  key_id?: string;
+}
+
+export interface PayloadDecryptResponseDTO {
+  plaintext: string;
+  integrity_verified: boolean;
+  decryption_latency_ms: number;
+  zero_leak_verified: boolean;
+}
+
+export interface SubsystemHealthItemDTO {
+  subsystem_id: string;
+  name: string;
+  status: 'HEALTHY' | 'ARMED' | 'DEGRADED' | 'DOZING';
+  latency_ms: number;
+  details: string;
+}
+
+export interface SystemHealthStatusResponseDTO {
+  status: string;
+  uptime_seconds: number;
+  total_subsystems_probed: number;
+  all_healthy: boolean;
+  tor_v3_onion_address: string;
+  bearer_auth_armed: boolean;
+  memory_barriers_active: boolean;
+  flag_secure_enforced: boolean;
+  subsystems: SubsystemHealthItemDTO[];
+  timestamp_utc: string;
+}
+
+export interface TorOnionStatusResponseDTO {
+  service_active: boolean;
+  onion_v3_address: string;
+  control_port: number;
+  socks5_proxy_port: number;
+  active_circuits_count: number;
+  circuit_hops: string[];
+  guard_node_fingerprint: string;
+  isolated_streams: boolean;
+  zero_dns_leak: boolean;
+}
+
+export interface FastApiEndpointMetricDTO {
+  endpoint: string;
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  authRequired: boolean;
+  avgLatencyMs: number;
+  callsCount: number;
+  successRate: number;
+  description: string;
+}
+
+export interface FastApiServerStateDTO {
+  serverStatus: 'RUNNING' | 'HIBERNATING' | 'RESTARTING';
+  fastApiVersion: string;
+  pythonEngine: string;
+  torV3OnionAddress: string;
+  bearerAuthScheme: 'HTTPBearer (RFC 6750)';
+  pydanticValidation: 'Pydantic v2.0+ Strict Schemas';
+  activeSessionsCount: number;
+  uptimeSeconds: number;
+  averageLatencyMs: number;
+  totalRequestsHandled: number;
+  lastActiveSessionId?: string;
+  currentBearerToken?: string;
+}
+
+export interface FastApiDispatchLogDTO {
+  id: string;
+  timestamp: string;
+  method: string;
+  path: string;
+  statusCode: number;
+  latencyMs: number;
+  tokenUsed: string;
+  clientIp: string;
+  payloadSummary: string;
+}
+
+
+
 
 
 

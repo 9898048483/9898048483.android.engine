@@ -16,6 +16,8 @@ import { SecurityTelemetryDashboard } from './components/SecurityTelemetryDashbo
 import { NativeIPCFirewallExplorer } from './components/NativeIPCFirewallExplorer';
 import { ZeroTouchBatteryManager } from './components/ZeroTouchBatteryManager';
 import { KivyGuiRenderingLayer } from './components/KivyGuiRenderingLayer';
+import { LocalAiNlpEngine } from './components/LocalAiNlpEngine';
+import { FastApiMicroBackend } from './components/FastApiMicroBackend';
 import { PipelineRun, ApkInfo, DevOpsAlert, AuditEvent, RepoSecret, UserSpaceRecord } from './types';
 
 
@@ -270,6 +272,14 @@ export default function App() {
             loading={loading}
             onNavigateToArtifacts={() => setActiveTab('artifacts')}
           />
+        )}
+
+        {activeTab === 'fastapi_backend' && (
+          <FastApiMicroBackend />
+        )}
+
+        {activeTab === 'local_nlp' && (
+          <LocalAiNlpEngine />
         )}
 
         {activeTab === 'kivy_gui' && (

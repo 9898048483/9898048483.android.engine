@@ -22,6 +22,17 @@ import subprocess
 import sys
 import threading
 import time
+try:
+    from obfs4_bridge_manager import Obfs4BridgeManager
+except ImportError:
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("obfs4_bridge_manager", os.path.join(os.path.dirname(__file__), "obfs4_bridge_manager.py"))
+    if spec and spec.loader:
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        Obfs4BridgeManager = mod.Obfs4BridgeManager
+    else:
+        Obfs4BridgeManager = None
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -48,6 +59,8 @@ class TorDaemonConfig:
     control_password: str = ""
     auto_rotate_seconds: int = 300  # 5 minutes auto-key rotation default
     log_level: str = "notice"
+    enable_obfs4: bool = False
+    obfs4_binary_path: str = "/data/data/ai.secure.space.touchless/lib/libobfs4proxy.so"
 
 
 @dataclass
@@ -339,6 +352,18 @@ class EphemeralOnionDaemon:
                 "--HashedControlPassword", "",
                 "--Log", f"{self.config.log_level} stdout"
             ]
+
+            if self.config.enable_obfs4 and Obfs4BridgeManager:
+                self._log("Configuring obfs4 Pluggable Transports...")
+                manager = Obfs4BridgeManager(self.config.obfs4_binary_path)
+                bridge_lines = manager.generate_torrc_bridge_config()
+                # Parse lines and convert them to CLI arguments
+                # Example: "UseBridges 1" -> "--UseBridges", "1"
+                for line in bridge_lines:
+                    parts = line.strip().split(" ", 1)
+                    if len(parts) == 2:
+                        tor_cmd.extend(["--" + parts[0], parts[1]])
+
             try:
                 self._tor_process = subprocess.Popen(
                     tor_cmd,

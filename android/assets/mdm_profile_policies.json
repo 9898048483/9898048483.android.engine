@@ -1,0 +1,30 @@
+{
+    "organization_name": "AI Secure Space Enterprise",
+    "work_profile_policies": {
+        "cross_profile_sharing": {
+            "allow_clipboard_sharing": false,
+            "allow_intent_sharing": false,
+            "allow_contacts_search": false
+        },
+        "device_password_policies": {
+            "minimum_length": 8,
+            "require_alphanumeric": true,
+            "maximum_failed_attempts_before_wipe": 5,
+            "password_expiration_timeout": 86400000
+        },
+        "hardware_restrictions": {
+            "disable_camera": true,
+            "disable_screen_capture": true,
+            "disable_usb_data_signaling": true,
+            "require_strongbox_tee": true
+        }
+    },
+    "attestation": {
+        "require_play_integrity": true,
+        "required_integrity_levels": [
+            "MEETS_BASIC_INTEGRITY",
+            "MEETS_DEVICE_INTEGRITY",
+            "MEETS_STRONG_INTEGRITY"
+        ]
+    }
+}
