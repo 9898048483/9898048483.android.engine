@@ -8,7 +8,16 @@ import { MonitoringAndAlerts } from './components/MonitoringAndAlerts';
 import { SecretsAndWorkflows } from './components/SecretsAndWorkflows';
 import { GoogleAuthModal } from './components/GoogleAuthModal';
 import { NativeBridgeExplorer } from './components/NativeBridgeExplorer';
+import { AICryptoEngineExplorer } from './components/AICryptoEngineExplorer';
+import { IsolatedVaultManager } from './components/IsolatedVaultManager';
+import { DuressShredderExplorer } from './components/DuressShredderExplorer';
+import { UniversalI18nEngine } from './components/UniversalI18nEngine';
+import { SecurityTelemetryDashboard } from './components/SecurityTelemetryDashboard';
+import { NativeIPCFirewallExplorer } from './components/NativeIPCFirewallExplorer';
+import { ZeroTouchBatteryManager } from './components/ZeroTouchBatteryManager';
+import { KivyGuiRenderingLayer } from './components/KivyGuiRenderingLayer';
 import { PipelineRun, ApkInfo, DevOpsAlert, AuditEvent, RepoSecret, UserSpaceRecord } from './types';
+
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('pipeline');
@@ -263,16 +272,33 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'native_bridge' && (
-          <NativeBridgeExplorer />
+        {activeTab === 'kivy_gui' && (
+          <KivyGuiRenderingLayer />
         )}
 
-        {activeTab === 'artifacts' && (
-          <AndroidArtifactCard
-            apkInfo={apkInfo || pipeline.apkInfo}
-            onRebuildApk={handleFastBuildApk}
-            loading={loading}
-          />
+        {activeTab === 'battery_daemon' && (
+          <ZeroTouchBatteryManager />
+        )}
+
+        {activeTab === 'ipc_firewall' && (
+          <NativeIPCFirewallExplorer />
+        )}
+
+        {activeTab === 'telemetry_audit' && (
+          <SecurityTelemetryDashboard />
+        )}
+
+
+        {activeTab === 'i18n' && (
+          <UniversalI18nEngine />
+        )}
+
+        {activeTab === 'duress' && (
+          <DuressShredderExplorer />
+        )}
+
+        {activeTab === 'vault' && (
+          <IsolatedVaultManager />
         )}
 
         {activeTab === 'zerotouch' && (
@@ -283,6 +309,22 @@ export default function App() {
           <TorOnionManager
             userSpaces={userSpaces}
             onCreateUserSpace={handleCreateUserSpace}
+          />
+        )}
+
+        {activeTab === 'ai_keystream' && (
+          <AICryptoEngineExplorer />
+        )}
+
+        {activeTab === 'native_bridge' && (
+          <NativeBridgeExplorer />
+        )}
+
+        {activeTab === 'artifacts' && (
+          <AndroidArtifactCard
+            apkInfo={apkInfo || pipeline.apkInfo}
+            onRebuildApk={handleFastBuildApk}
+            loading={loading}
           />
         )}
 

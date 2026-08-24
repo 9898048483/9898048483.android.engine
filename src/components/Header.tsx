@@ -10,7 +10,14 @@ import {
   Key, 
   FileCode2,
   CheckCircle2,
-  Lock
+  Lock,
+  Brain,
+  FolderLock,
+  Flame,
+  ShieldAlert,
+  Globe2,
+  Cpu,
+  BatteryMedium
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -32,13 +39,22 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const tabs = [
     { id: 'pipeline', label: 'CI/CD Pipeline', icon: Terminal, badge: pipelineRunning ? 'Building' : null },
-    { id: 'native_bridge', label: 'Prompt 1: C++/NDK Bridge', icon: FileCode2, highlight: true },
+    { id: 'kivy_gui', label: 'Prompt 12: Kivy GUI Layer', icon: Smartphone, highlight: true },
+    { id: 'battery_daemon', label: 'Prompt 11: Zero-Touch Battery', icon: BatteryMedium },
+    { id: 'ipc_firewall', label: 'Prompt 10: NDK IPC Firewall', icon: Cpu },
+    { id: 'telemetry_audit', label: 'Prompt 9: Security Audit', icon: ShieldAlert },
+    { id: 'i18n', label: 'Prompt 8: Universal i18n', icon: Globe2 },
+    { id: 'duress', label: 'Prompt 7: Duress Self-Destruct', icon: Flame },
+    { id: 'vault', label: 'Prompt 6: Deniable Vault', icon: FolderLock },
+    { id: 'zerotouch', label: 'Prompt 5: 0-Touch Biometrics', icon: Lock },
+    { id: 'tor', label: 'Prompt 4: Tor v3 Daemon', icon: Globe },
+    { id: 'ai_keystream', label: 'Prompt 3: AI Keystream', icon: Brain },
+    { id: 'native_bridge', label: 'Prompt 1: C++/NDK Bridge', icon: FileCode2 },
     { id: 'artifacts', label: 'Android /dist APK', icon: Smartphone },
-    { id: 'zerotouch', label: '0-Touch AI Crypto', icon: Lock },
-    { id: 'tor', label: 'Tor .onion Space', icon: Globe },
     { id: 'monitoring', label: 'Telemetry & Alerts', icon: Activity, badge: alertCount > 0 ? `${alertCount}` : null },
     { id: 'secrets', label: 'Repo Secrets & Code', icon: Key },
   ];
+
 
   return (
     <header id="app-header" className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40">
