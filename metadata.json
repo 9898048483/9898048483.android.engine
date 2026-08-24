@@ -1,0 +1,6 @@
+{
+  "name": "AI Secure Space & Android CI/CD Pipeline Dashboard",
+  "description": "DevSecOps CI/CD pipeline manager with Android debug.apk output to /dist, Core C++/NDK multi-language native bridge (Python/Kotlin), POSIX shared memory IPC, low-overhead memory allocators, native ISO locale detection, 0-touch biometrics, and Tor .onion user spaces.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
