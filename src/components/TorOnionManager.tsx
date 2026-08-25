@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { NetworkTopologyMap } from './NetworkTopologyMap';
 import { 
   Globe, 
   ShieldCheck, 
@@ -34,7 +35,7 @@ export const TorOnionManager: React.FC<TorOnionManagerProps> = ({
   userSpaces,
   onCreateUserSpace,
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'services' | 'p2p_socket' | 'daemon_arch' | 'python_source' | 'cli_trace'>('services');
+  const [activeSubTab, setActiveSubTab] = useState<'services' | 'p2p_socket' | 'daemon_arch' | 'python_source' | 'cli_trace' | 'topology'>('services');
   const [daemonStatus, setDaemonStatus] = useState<TorDaemonStatusData | null>(null);
   const [services, setServices] = useState<EphemeralOnionServiceData[]>([]);
   const [messages, setMessages] = useState<P2PTunnelMessage[]>([]);
@@ -297,6 +298,19 @@ export const TorOnionManager: React.FC<TorOnionManagerProps> = ({
           </button>
           <button
             onClick={() => {
+              setActiveSubTab('topology');
+            }}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-2 whitespace-nowrap ${
+              activeSubTab === 'topology'
+                ? 'bg-teal-600 text-white shadow-sm'
+                : 'bg-zinc-800/80 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
+            }`}
+          >
+            <Network className="w-3.5 h-3.5" />
+            Network Topology Map
+          </button>
+          <button
+            onClick={() => {
               setActiveSubTab('cli_trace');
               if (cliLogs.length === 0) handleRunCliTest();
             }}
@@ -360,6 +374,13 @@ export const TorOnionManager: React.FC<TorOnionManagerProps> = ({
           </div>
         </div>
       </div>
+
+      {/* SUB-TAB: TOPOLOGY */}
+      {activeSubTab === 'topology' && (
+        <div className="h-[500px] w-full">
+          <NetworkTopologyMap />
+        </div>
+      )}
 
       {/* SUB-TAB 1: SERVICES & KEY ROTATION */}
       {activeSubTab === 'services' && (
