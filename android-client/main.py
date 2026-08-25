@@ -48,9 +48,42 @@ class SecureSpaceLayout(BoxLayout):
         self.duress_button.bind(on_press=self.duress_wipe)
         self.add_widget(self.duress_button)
         
+        self.sync_button: Button = Button(
+            text="SYNC TO DRIVE", 
+            font_size=24, 
+            background_color=(0.5, 0.5, 0.5, 1), 
+            size_hint_y=0.2
+        )
+        self.sync_button.bind(on_press=self.sync_to_drive)
+        self.add_widget(self.sync_button)
+        
         # Schedule FLAG_SECURE enforcement on the main UI thread
         Clock.schedule_once(self.set_secure_flag, 0)
         self.service.start_daemon()
+
+    def sync_to_drive(self, instance: Any) -> None:
+        self.status_label.text = "SYNCING TO DRIVE..."
+        # NOTE: You MUST place a valid 'client_secrets.json' file 
+        # in the /android-client/ directory.
+        try:
+            from google_auth_oauthlib.flow import InstalledAppFlow
+            from drive_backup import run_backup
+            
+            # This will attempt to open a browser for OAuth
+            flow = InstalledAppFlow.from_client_secrets_file(
+                'client_secrets.json',
+                scopes=['https://www.googleapis.com/auth/drive.file']
+            )
+            creds = flow.run_local_server(port=0)
+            
+            # Run backup in a background thread
+            import threading
+            threading.Thread(target=run_backup, args=(creds.to_json(),)).start()
+            
+            self.status_label.text = "SYNC IN PROGRESS"
+        except Exception as e:
+            self.status_label.text = f"SYNC FAILED: {str(e)}"
+            print(f"Sync error: {str(e)}")
 
     def set_secure_flag(self, dt: float) -> None:
         if platform == 'android':

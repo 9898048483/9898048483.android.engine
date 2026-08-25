@@ -18,17 +18,16 @@ source.include_exts = py,png,jpg,kv,atlas
 version = 1.0.0
 
 # (list) Application requirements
-# comma separated e.g. requirements = sqlite3,kivy
-requirements = python3,kivy,plyer,jnius,cryptography,requests,pysocks
+requirements = python3,kivy,plyer,jnius,cryptography,requests,pysocks,google-api-python-client,google-auth-httplib2,google-auth-oauthlib
 
 # (list) Permissions
-android.permissions = INTERNET, CAMERA, USE_BIOMETRIC, ACCESS_FINE_LOCATION
+android.permissions = INTERNET, CAMERA, USE_BIOMETRIC, USE_FINGERPRINT, ACCESS_NETWORK_STATE
 
 # (int) Target Android API, should be as high as possible.
 android.api = 34
 
 # (int) Minimum API your APK / AAB will support.
-android.minapi = 28
+android.minapi = 21
 
 # (int) Android NDK version to use
 android.ndk_api = 28
@@ -36,8 +35,8 @@ android.ndk_api = 28
 # (bool) Use --private data storage (True) or --dir public storage (False)
 android.private_storage = True
 
-# (list) Gradle dependencies (ML Kit Face Detection, Biometrics, Play Integrity)
-android.gradle_dependencies = com.google.mlkit:face-detection:16.1.6, androidx.biometric:biometric:1.2.0-alpha05, com.google.android.play:integrity:1.2.0
+# (list) Gradle dependencies (ML Kit Face Detection, Biometrics)
+android.gradle_dependencies = com.google.mlkit:face-detection:16.1.6, androidx.biometric:biometric:1.2.0-alpha05
 
 # (bool) Enable AndroidX support
 android.enable_androidx = True
@@ -46,8 +45,5 @@ android.enable_androidx = True
 android.archs = arm64-v8a
 
 [buildozer]
-# (int) Log level (0 = error only, 1 = info, 2 = debug (with command output))
 log_level = 2
-
-# (int) Display warning if buildozer is run as root (0 = False, 1 = True)
 warn_on_root = 0
