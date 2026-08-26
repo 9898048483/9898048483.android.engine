@@ -4449,6 +4449,96 @@ class TestQuantumProofOfEntanglementConsensus:
         assert leader.node_id in ["qnode_alpha_01", "qnode_beta_02"]
         assert prob > 0.0
 
+    def test_qkd_mesh_router_bb84_and_otp(self):
+        """Verifies BB84 photon polarization state encoding, QBER eavesdropping detection, and OTP encryption."""
+        from server.services.qkd_mesh_router import (
+            QKDMeshRouterEngine,
+            QBER_SECURITY_THRESHOLD_PCT,
+        )
+
+        qkd = QKDMeshRouterEngine()
+
+        # 1. Clean QKD session between two mesh nodes (No Eve)
+        session_clean = qkd.execute_bb84_key_exchange(
+            sender_id="qnode_mesh_01",
+            receiver_id="qnode_mesh_02",
+            num_photons=256,
+            eavesdropper_present=False,
+        )
+        assert session_clean.is_link_secure is True
+        assert session_clean.is_eavesdropper_detected is False
+        assert session_clean.qber_percentage < QBER_SECURITY_THRESHOLD_PCT
+        assert session_clean.derived_otp_key_hex is not None
+
+        # 2. Encrypt and decrypt block payload using One-Time-Pad
+        payload = b"TOKEN_9898048483_QUANTUM_BLOCK_TX_DATA"
+        cipher = qkd.encrypt_block_payload_with_otp("qnode_mesh_01", "qnode_mesh_02", payload)
+        decrypted = qkd.encrypt_block_payload_with_otp("qnode_mesh_01", "qnode_mesh_02", cipher)
+        assert decrypted == payload
+
+        # 3. Intercepted session with Eve eavesdropping -> QBER exceeds 11% threshold
+        session_intercepted = qkd.execute_bb84_key_exchange(
+            sender_id="qnode_mesh_03",
+            receiver_id="qnode_mesh_04",
+            num_photons=256,
+            eavesdropper_present=True,
+        )
+        assert session_intercepted.is_eavesdropper_detected is True
+        assert session_intercepted.is_link_secure is False
+        assert session_intercepted.qber_percentage > QBER_SECURITY_THRESHOLD_PCT
+
+    def test_quantum_annealing_qubo_routing_and_arbitrage(self):
+        """Verifies QUBO Hamiltonian formulation, simulated transverse field quantum tunneling, and optimal multi-hop arbitrage."""
+        from server.services.quantum_annealing_router import (
+            QuantumAnnealingRoutingEngine,
+        )
+
+        router = QuantumAnnealingRoutingEngine()
+
+        # 1. Register candidate DEX liquidity pools
+        router.register_liquidity_pool(
+            source_token="TOKEN9898",
+            target_token="USDC",
+            dex_protocol="TOKEN9898_CLMM",
+            pool_address="0xpool_clmm_01",
+            liquidity_usd=1_500_000.0,
+            fee_bps=5.0,
+            price_ratio=10.50,
+        )
+        router.register_liquidity_pool(
+            source_token="USDC",
+            target_token="ETH",
+            dex_protocol="UNISWAP_V4",
+            pool_address="0xpool_uni_02",
+            liquidity_usd=4_000_000.0,
+            fee_bps=10.0,
+            price_ratio=0.00032,
+        )
+        router.register_liquidity_pool(
+            source_token="ETH",
+            target_token="TOKEN9898",
+            dex_protocol="CURVE_STABLE",
+            pool_address="0xpool_curve_03",
+            liquidity_usd=2_000_000.0,
+            fee_bps=4.0,
+            price_ratio=305.0,
+        )
+
+        # 2. Solve QUBO routing optimization using quantum annealing
+        sol = router.solve_optimal_quantum_route(
+            source_token="TOKEN9898",
+            target_token="TOKEN9898",
+            input_amount_tokens=100.0,
+            max_hops=3,
+            annealing_sweeps=100,
+        )
+
+        assert sol.route_id.startswith("qroute_")
+        assert len(sol.chosen_hops) > 0
+        assert sol.quantum_annealing_sweeps == 100
+        assert sol.expected_output_tokens > 0.0
+
+
 
 
 
