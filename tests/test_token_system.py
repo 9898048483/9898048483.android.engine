@@ -4408,6 +4408,48 @@ class TestAdvancedInfrastructureAndDeFiSuite:
         assert "token9898_validator_count 150" in prom_text
         assert "token9898_cluster_health 1" in prom_text
 
+# ---------------------------------------------------------------------------
+# 48. Quantum Proof of Entanglement (PoE) Consensus Engine (Prompt 90)
+# ---------------------------------------------------------------------------
+
+class TestQuantumProofOfEntanglementConsensus:
+    """Validates EPR pair generation, CHSH non-local correlation tests, and quantum slot leader election."""
+
+    def test_quantum_poe_epr_chsh_and_leader_election(self):
+        """Verifies Bell-state preparation, Tsirelson-bounded CHSH correlation S > 2, and slot leader lottery."""
+        from server.services.quantum_poe_consensus import (
+            QuantumProofOfEntanglementEngine,
+            CLASSICAL_LOCAL_HIDDEN_VARIABLE_LIMIT,
+            TSIRELSON_BOUND,
+        )
+
+        poe_engine = QuantumProofOfEntanglementEngine()
+
+        # 1. Register Quantum Validator Nodes with Photonic Hardware
+        val_a = poe_engine.register_quantum_validator("qnode_alpha_01", hardware_type="PHOTONIC_EPR_TRAP", initial_uptime=7200.0)
+        val_b = poe_engine.register_quantum_validator("qnode_beta_02", hardware_type="PHOTONIC_EPR_TRAP", initial_uptime=5400.0)
+        assert val_a.node_id == "qnode_alpha_01"
+        assert val_b.node_id == "qnode_beta_02"
+
+        # 2. Generate Bell-State EPR Pair |Phi+>
+        epr = poe_engine.generate_bell_state_epr_pair(val_a.node_id, val_b.node_id)
+        assert epr.fidelity > 0.95
+        assert epr.pair_id.startswith("epr_")
+
+        # 3. Execute CHSH Inequality Correlation Test
+        chsh_res = poe_engine.execute_chsh_correlation_test(val_a.node_id, val_b.node_id, num_measurements=1000)
+        assert chsh_res.measured_s_value > CLASSICAL_LOCAL_HIDDEN_VARIABLE_LIMIT  # S > 2.0 (Quantum non-locality confirmed)
+        assert chsh_res.measured_s_value <= TSIRELSON_BOUND                         # S <= 2*sqrt(2) (Tsirelson Bound)
+        assert chsh_res.is_quantum_entangled is True
+        assert chsh_res.classical_bound_exceeded is True
+        assert chsh_res.tsirelson_ratio > 70.0
+
+        # 4. Elect Quantum Slot Leader Proposer
+        leader, prob = poe_engine.elect_quantum_slot_leader(slot_number=42)
+        assert leader.node_id in ["qnode_alpha_01", "qnode_beta_02"]
+        assert prob > 0.0
+
+
 
 
 
