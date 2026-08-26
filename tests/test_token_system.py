@@ -34,11 +34,13 @@ try:
     from android_client.keystore_wallet import HardwareKeyStoreWallet
     from android_client.airgap_payment import AirGapPaymentEngine
     from android_client.rasp_manager import RaspManager
+    from android_client.cloud_sync import EncryptedCloudBackupManager
 except ImportError:
     from hwid_enclave import HWIDEnclaveBinder
     from keystore_wallet import HardwareKeyStoreWallet
     from airgap_payment import AirGapPaymentEngine
     from rasp_manager import RaspManager
+    from cloud_sync import EncryptedCloudBackupManager
 from server.crypto.pqc_mldsa import HybridPQCSigner, MLDSA87Signer
 from server.network.tor_p2p_relay import TorP2PRelayDaemon
 from server.crypto.deniable_vault import PlausibleDeniabilityVault
@@ -1158,6 +1160,252 @@ class TestAndroidWalletAndBackgroundService:
 
         finally:
             service.stop_service()
+
+
+# ---------------------------------------------------------------------------
+# 19. Encrypted Cloud Backup & Panic Purge Hook Tests
+# ---------------------------------------------------------------------------
+
+class TestEncryptedCloudBackupAndPanicPurge:
+    """Validates AES-256-GCM cloud backup encryption and emergency panic purge zeroization."""
+
+    def test_aes_gcm_cloud_backup_encryption_and_decryption(self, tmp_path):
+        """Verifies AEAD encryption with 12-byte random nonces and 16-byte authentication tags."""
+        wallet_dir = str(tmp_path / "wallet")
+        manager = EncryptedCloudBackupManager(wallet_dir=wallet_dir)
+
+        payload = b"PQC_SECRET_TOKEN_WALLET_SEED_DILITHIUM3_9898048483"
+        aad = b"token_9898048483_backup"
+
+        encrypted = manager.encrypt_payload(payload, associated_data=aad)
+        assert len(encrypted) >= len(payload) + 28  # 12-byte nonce + ciphertext + 16-byte tag
+
+        decrypted = manager.decrypt_payload(encrypted, associated_data=aad)
+        assert decrypted == payload
+
+        # Tampered ciphertext fails authentication
+        tampered = bytearray(encrypted)
+        tampered[-1] ^= 0xFF
+        with pytest.raises(Exception):
+            manager.decrypt_payload(bytes(tampered), associated_data=aad)
+
+    def test_encrypted_backup_bundle_creation_and_upload(self, tmp_path):
+        """Creates encrypted JSON backup package and simulates Google Drive cloud sync."""
+        wallet_dir = str(tmp_path / "wallet")
+        manager = EncryptedCloudBackupManager(wallet_dir=wallet_dir)
+
+        wallet_data = {
+            "address": "0x7a9c8b3e1f4d5e2a6b0c9d8e7f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a",
+            "balance": 1000.0,
+            "token_id": "9898048483",
+            "nonce": 1,
+            "created_at": time.time(),
+        }
+
+        backup_file, file_size = manager.create_encrypted_backup_bundle(wallet_data)
+        assert os.path.exists(backup_file)
+        assert file_size > 0
+        assert manager.last_backup_timestamp is not None
+
+        upload_res = manager.upload_to_google_drive(backup_file)
+        assert upload_res["status"] in ["READY_FOR_SYNC", "UPLOADED"]
+        assert "sha256" in upload_res
+
+    def test_panic_purge_hook_destroys_tokens_and_wallet_headers(self, tmp_path):
+        """Triggers emergency Duress PIN panic purge and asserts anti-forensic shredding."""
+        wallet_dir = str(tmp_path / "wallet")
+        token_cred_file = str(tmp_path / "wallet" / "drive_token.json")
+        wallet_header_file = str(tmp_path / "wallet" / "wallet_header.dat")
+        os.makedirs(wallet_dir, exist_ok=True)
+
+        with open(token_cred_file, "w") as f:
+            f.write(json.dumps({"access_token": "ya29.secret_oauth_token", "refresh_token": "1//refresh"}))
+
+        with open(wallet_header_file, "wb") as f:
+            f.write(b"HEADER_VERACRYPT_VOLUME_MASTER_KEY_SALT_BYTES_000111222")
+
+        manager = EncryptedCloudBackupManager(
+            wallet_dir=wallet_dir,
+            token_credentials_path=token_cred_file,
+            wallet_header_path=wallet_header_file,
+        )
+
+        # Trigger Panic Purge
+        report = manager.trigger_panic_purge(reason="REMOTE_DURESS_SIGNAL", distress_pin="9999")
+        assert report["status"] == "PURGED_ZEROIZED"
+        assert report["reason"] == "REMOTE_DURESS_SIGNAL"
+        assert manager.is_purged is True
+
+        # Assert files are deleted/shredded
+        assert not os.path.exists(token_cred_file)
+        assert not os.path.exists(wallet_header_file)
+
+        # Further operations must raise RuntimeError
+        with pytest.raises(RuntimeError):
+            manager.encrypt_payload(b"test")
+
+
+# ---------------------------------------------------------------------------
+# 20. Asynchronous End-to-End System Tests (Prompt 19)
+# ---------------------------------------------------------------------------
+
+class TestAsyncEndToEndTokenLedgerSystem:
+    """
+    Comprehensive Async System Tests covering:
+    1. Initial 1000-token deduction from Master Vault upon new HWID registration.
+    2. Enforcement of the 49% public cap limit (485,004,375,667 tokens).
+    3. P2P token transfer verification over FastAPI endpoints.
+    4. Anti-double-spend nonce checks.
+    5. Zero-token distribution for duplicate HWIDs.
+    """
+
+    @pytest.mark.asyncio
+    async def test_async_initial_1000_token_deduction_on_hwid_registration(self):
+        """Verifies initial 1000 tokens are granted to new device and deducted from Master Vault."""
+        app = create_fastapi_token_app()
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+            hwid_id = f"hwid_0x{hashlib.sha256(f'async_device_{time.time()}'.encode()).hexdigest()[:32]}"
+            wallet_addr = f"0x{hashlib.sha256(f'async_wallet_{time.time()}'.encode()).hexdigest()}"
+
+            initial_status = master_vault_ledger.get_vault_status()
+            initial_circulating = initial_status["public_distributed_tokens"]
+
+            reg_payload = {
+                "hwid_hash": hwid_id,
+                "wallet_address": wallet_addr,
+                "device_model": "Google Pixel 9 Pro Fold (Titan M2)",
+            }
+            resp = await client.post("/api/v1/device/register", json=reg_payload)
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["success"] is True
+            assert data["grant_amount"] == 1000.0
+
+            # Verify Balance Endpoint
+            bal_resp = await client.get(f"/api/v1/wallet/{wallet_addr}/balance")
+            assert bal_resp.status_code == 200
+            assert bal_resp.json()["balance"] == 1000.0
+
+            # Verify Master Vault public circulating increased by 1000
+            new_status = master_vault_ledger.get_vault_status()
+            assert new_status["public_distributed_tokens"] == initial_circulating + 1000.0
+
+    @pytest.mark.asyncio
+    async def test_async_duplicate_hwid_zero_token_distribution(self):
+        """Verifies duplicate HWID receives 0 tokens and is rejected/flagged."""
+        app = create_fastapi_token_app()
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+            hwid_id = f"hwid_0x{hashlib.sha256(b'duplicate_hwid_test_fixture').hexdigest()[:32]}"
+            wallet_addr_1 = f"0x{hashlib.sha256(b'wallet_one_duplicate_test').hexdigest()}"
+            wallet_addr_2 = f"0x{hashlib.sha256(b'wallet_two_duplicate_test').hexdigest()}"
+
+            # 1. First registration -> 1000 tokens
+            reg_1 = await client.post("/api/v1/device/register", json={
+                "hwid_hash": hwid_id,
+                "wallet_address": wallet_addr_1,
+            })
+            assert reg_1.status_code == 200
+
+            # 2. Second registration with SAME HWID -> 0 tokens (Already registered)
+            reg_2 = await client.post("/api/v1/device/register", json={
+                "hwid_hash": hwid_id,
+                "wallet_address": wallet_addr_2,
+            })
+            assert reg_2.status_code == 200
+            data_2 = reg_2.json()
+            assert data_2["grant_amount"] == 0.0
+            assert "ALREADY_REGISTERED" in data_2["status"]
+
+            # Second wallet must have 0 tokens
+            bal_2 = await client.get(f"/api/v1/wallet/{wallet_addr_2}/balance")
+            assert bal_2.json()["balance"] == 0.0
+
+    @pytest.mark.asyncio
+    async def test_async_p2p_token_transfer_verification(self):
+        """Verifies P2P token transfer deduction from sender, credit to receiver, and tx receipt generation."""
+        app = create_fastapi_token_app()
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+            # Seed Sender with 1000 tokens
+            sender_hwid = f"hwid_0x{hashlib.sha256(f'sender_hwid_{time.time()}'.encode()).hexdigest()[:32]}"
+            sender_addr = f"0x{hashlib.sha256(f'sender_addr_{time.time()}'.encode()).hexdigest()}"
+            receiver_addr = f"0x{hashlib.sha256(f'receiver_addr_{time.time()}'.encode()).hexdigest()}"
+
+            await client.post("/api/v1/device/register", json={
+                "hwid_hash": sender_hwid,
+                "wallet_address": sender_addr,
+            })
+
+            # Execute 350-token transfer
+            transfer_payload = {
+                "sender_address": sender_addr,
+                "receiver_address": receiver_addr,
+                "amount": 350.0,
+                "signature": f"pqc_mldsa_sig_{int(time.time())}",
+                "nonce": 1,
+            }
+            tx_resp = await client.post("/api/v1/token/transfer", json=transfer_payload)
+            assert tx_resp.status_code == 200
+            tx_data = tx_resp.json()
+            assert tx_data["success"] is True
+            assert tx_data["transferred_amount"] == 350.0
+
+            # Verify updated balances
+            sender_bal = (await client.get(f"/api/v1/wallet/{sender_addr}/balance")).json()["balance"]
+            receiver_bal = (await client.get(f"/api/v1/wallet/{receiver_addr}/balance")).json()["balance"]
+            assert sender_bal == 650.0
+            assert receiver_bal == 350.0
+
+    @pytest.mark.asyncio
+    async def test_async_anti_double_spend_nonce_enforcement(self):
+        """Verifies replayed transfer with identical or stale nonce is rejected (Anti-Double-Spend)."""
+        app = create_fastapi_token_app()
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+            sender_hwid = f"hwid_0x{hashlib.sha256(f'nonce_test_hwid_{time.time()}'.encode()).hexdigest()[:32]}"
+            sender_addr = f"0x{hashlib.sha256(f'nonce_test_sender_{time.time()}'.encode()).hexdigest()}"
+            receiver_addr = f"0x{hashlib.sha256(f'nonce_test_receiver_{time.time()}'.encode()).hexdigest()}"
+
+            await client.post("/api/v1/device/register", json={
+                "hwid_hash": sender_hwid,
+                "wallet_address": sender_addr,
+            })
+
+            # First Tx with Nonce 1 -> Success
+            tx_1 = await client.post("/api/v1/token/transfer", json={
+                "sender_address": sender_addr,
+                "receiver_address": receiver_addr,
+                "amount": 100.0,
+                "signature": "sig_nonce_1",
+                "nonce": 1,
+            })
+            assert tx_1.status_code == 200
+
+            # Replayed Tx with Nonce 1 -> Rejection
+            tx_replay = await client.post("/api/v1/token/transfer", json={
+                "sender_address": sender_addr,
+                "receiver_address": receiver_addr,
+                "amount": 100.0,
+                "signature": "sig_nonce_1_replay",
+                "nonce": 1,
+            })
+            assert tx_replay.status_code == 400
+            assert "nonce" in tx_replay.json()["detail"].lower() or "invalid" in tx_replay.json()["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_async_49_percent_public_cap_enforcement(self):
+        """Verifies that the public distribution cap (49% = 485,004,375,667 tokens) cannot be exceeded."""
+        engine = MasterVaultLedgerEngine()
+        # Set total public distributed to the exact cap limit
+        engine.total_public_distributed = MAX_PUBLIC_DISTRIBUTION
+
+        # Attempt to issue new device grant
+        ok, msg, record = engine.register_device_and_grant(
+            hwid_hash="hwid_0x_cap_overflow_test",
+            wallet_address="0x" + "a" * 64,
+        )
+        assert ok is False
+        assert "CAP_REACHED" in msg or "exceeded" in msg.lower()
+        assert record is None
+
 
 
 
