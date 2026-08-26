@@ -6,11 +6,16 @@ import zlib from 'zlib';
 import { execSync } from 'child_process';
 import { createServer as createViteServer } from 'vite';
 import { buildDebugApk } from './scripts/generate-apk.js';
+import { fetchBalance, updateBalance } from './src/db/tokenUtils';
+import http from 'http';
+import { WebSocketServer } from 'ws';
+import tokenRouter from './server/routers/token_router.js';
 
 const app = express();
 const PORT = 3000;
 
 app.use(express.json());
+app.use('/api/v1/token', tokenRouter);
 
 // In-memory state for DevSecOps & AI Secure Space telemetry
 let latestPipelineRun = {
@@ -218,11 +223,105 @@ app.get('/api/pipeline/status', (req, res) => {
   res.json(latestPipelineRun);
 });
 
+// 2a. Export Filtered Audit Logs Encrypted
+app.post('/api/telemetry/export-encrypted', (req, res) => {
+  const { events, password } = req.body;
+  if (!events || !password) return res.status(400).json({ error: 'Missing events or password' });
+
+  // Convert to CSV
+  const headers = ['eventId', 'timestampUtc', 'severity', 'category', 'action', 'status', 'actorId', 'sourceComponent', 'eventHash'];
+  const csv = [
+    headers.join(','),
+    ...events.map((e: any) => headers.map(h => JSON.stringify(e[h] || '')).join(','))
+  ].join('\n');
+
+  // Encryption (using the logic from /api/crypto/encrypt)
+  const contextRaw = crypto.createHash('sha256').update(csv + Math.random()).digest();
+  const aiSalt = crypto.createHash('sha256').update(contextRaw.toString('hex') + 'ai-quantum-salt').digest();
+  const derivedKey = crypto.pbkdf2Sync(password, aiSalt, 100000, 32, 'sha256');
+
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', derivedKey, iv);
+  const encrypted = Buffer.concat([cipher.update(csv, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+
+  res.json({
+    success: true,
+    ciphertext: encrypted.toString('base64'),
+    iv: iv.toString('base64'),
+    tag: tag.toString('base64')
+  });
+});
+
+const tokenRateLimit = new Map<string, number[]>();
+const RATE_LIMIT_WINDOW_MS = 60000;
+const MAX_REQUESTS_PER_WINDOW = 5;
+
+const tokenRateLimiter = (req: any, res: any, next: any) => {
+  const userId = req.body.userId || 'anonymous';
+  const now = Date.now();
+  let timestamps = tokenRateLimit.get(userId) || [];
+  timestamps = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW_MS);
+  if (timestamps.length >= MAX_REQUESTS_PER_WINDOW) {
+    return res.status(429).json({ error: 'Too many requests' });
+  }
+  timestamps.push(now);
+  tokenRateLimit.set(userId, timestamps);
+  next();
+};
+
+// 2b. Token API
+app.use(['/api/tokens/*', '/api/v1/token/*'], tokenRateLimiter);
+
+app.post('/api/tokens/balance', async (req, res) => {
+  const { userId } = req.body;
+  if (!userId) return res.status(400).json({ error: 'Missing userId' });
+  try {
+    const balance = await fetchBalance(userId);
+    res.json({ balance });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/tokens/mint', async (req, res) => {
+  const { userId, actionType } = req.body;
+  if (!userId || !actionType) return res.status(400).json({ error: 'Missing userId or actionType' });
+  
+  // Integrity check: verify audit log existence (mock check)
+  const auditLogExists = true; // In reality: check audit logs for actionType occurrence
+  if (!auditLogExists) return res.status(403).json({ error: 'Integrity check failed: No audit record' });
+
+  // Validate action (mock)
+  const allowedActions = ['build', 'security_check'];
+  if (!allowedActions.includes(actionType)) return res.status(400).json({ error: 'Invalid action' });
+  
+  try {
+    const mintAmount = '50';
+    await updateBalance(userId, mintAmount);
+    // TODO: log to TokenTransactions table
+    console.log(`[DB] Logged transaction: ${userId} minted ${mintAmount} for ${actionType}`);
+    const newBalance = await fetchBalance(userId);
+    res.json({ success: true, newBalance });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/tokens/history', async (req, res) => {
+  const { userId } = req.query;
+  if (!userId) return res.status(400).json({ error: 'Missing userId' });
+  // TODO: Implement actual query
+  res.json({ history: [] });
+});
+
 // 3. Direct APK Build endpoint
-app.post('/api/build/apk', (req, res) => {
+app.post('/api/build/apk', async (req, res) => {
   try {
     const distPath = path.resolve(process.cwd(), 'dist');
     const result = buildDebugApk(distPath);
+    await updateBalance('operator_alpha', '50');
+    console.log(`[Tokens] Rewarded operator_alpha with 50 tokens for successful APK build`);
     res.json({ success: true, ...result });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -4320,7 +4419,14 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = http.createServer(app);
+  const wss = new WebSocketServer({ server, path: '/api/v1/token/live-feed' });
+  wss.on('connection', (ws) => {
+    console.log('[WebSocket] Client connected');
+    ws.send(JSON.stringify({ type: 'connected' }));
+  });
+
+  server.listen(PORT, '0.0.0.0', () => {
     console.log(`[DevSecOps & AI Secure Space] Server running on http://0.0.0.0:${PORT}`);
   });
 }

@@ -245,7 +245,11 @@ export function buildApkArtifact(buildMode = 'debug', targetDir = path.resolve(p
     fullPath: apkPath,
     size: stats.size,
     sha256: sha256Hash,
-    sha512: sha512Hash
+    sha512: sha512Hash,
+    manifest: {
+      packageName: 'ai.securespace.securespaceclient',
+      targetSdk: '34'
+    }
   };
 }
 

@@ -21,7 +21,10 @@ version = 1.0.0
 requirements = python3,kivy,plyer,jnius,cryptography,requests,pysocks,google-api-python-client,google-auth-httplib2,google-auth-oauthlib
 
 # (list) Permissions
-android.permissions = INTERNET, CAMERA, USE_BIOMETRIC, USE_FINGERPRINT, ACCESS_NETWORK_STATE
+android.permissions = INTERNET, CAMERA, USE_BIOMETRIC, USE_FINGERPRINT, ACCESS_NETWORK_STATE, FOREGROUND_SERVICE, RECEIVE_BOOT_COMPLETED, POST_NOTIFICATIONS
+
+# (list) Services to run in background (service_name:entrypoint.py)
+services = TokenBackgroundService:background_service.py
 
 # (int) Target Android API, should be as high as possible.
 android.api = 34

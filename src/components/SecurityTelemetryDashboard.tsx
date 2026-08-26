@@ -24,12 +24,33 @@ import {
   Send,
   Zap,
   Play,
-  FileCheck
+  FileCheck,
+  Wallet,
 } from 'lucide-react';
 import { TelemetryEventDTO, LogArchiveManifestDTO, TelemetryMetricsDTO } from '../types';
+import { TokenDashboard } from './TokenDashboard';
 
 export const SecurityTelemetryDashboard: React.FC = () => {
-  const [activeSubTab, setActiveSubTab] = useState<'live_feed' | 'hash_chain' | 'buffer_metrics' | 'log_archives' | 'python_source' | 'cli_trace'>('live_feed');
+  const [activeSubTab, setActiveSubTab] = useState<'live_feed' | 'hash_chain' | 'buffer_metrics' | 'log_archives' | 'python_source' | 'cli_trace' | 'token_management'>('live_feed');
+  const [notification, setNotification] = useState<{message: string} | null>(null);
+
+  // Helper to trigger token minting and notify
+  const triggerMint = async (actionType: string) => {
+    try {
+      const res = await fetch('/api/tokens/mint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: 'operator_alpha', actionType })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setNotification({ message: `Successfully earned 50 tokens for: ${actionType}!` });
+        setTimeout(() => setNotification(null), 5000);
+      }
+    } catch (err) {
+      console.error('Failed to mint tokens:', err);
+    }
+  };
 
   // Telemetry Data State
   const [events, setEvents] = useState<TelemetryEventDTO[]>([]);
@@ -216,6 +237,9 @@ export const SecurityTelemetryDashboard: React.FC = () => {
         body: JSON.stringify(preset)
       });
       loadTelemetryData();
+      if (['duress', 'strongbox'].includes(type)) {
+        triggerMint('security_check');
+      }
     } catch (err) {
       console.error('Quick sim failed:', err);
     }
@@ -292,7 +316,9 @@ export const SecurityTelemetryDashboard: React.FC = () => {
       e.sourceComponent.toLowerCase().includes(s) ||
       e.actorId.toLowerCase().includes(s) ||
       e.targetResource.toLowerCase().includes(s) ||
-      e.eventHash.toLowerCase().includes(s)
+      e.eventHash.toLowerCase().includes(s) ||
+      e.severity.toLowerCase().includes(s) ||
+      e.status.toLowerCase().includes(s)
     );
   });
 
@@ -315,6 +341,13 @@ export const SecurityTelemetryDashboard: React.FC = () => {
 
   return (
     <div id="security-telemetry-container" className="space-y-6">
+      {/* Notification Toast */}
+      {notification && (
+        <div className="fixed top-20 right-8 z-[60] bg-indigo-600 text-white px-6 py-3 rounded-lg shadow-2xl flex items-center gap-3 border border-indigo-400">
+          <Zap className="w-5 h-5 text-amber-300" />
+          <span className="font-bold">{notification.message}</span>
+        </div>
+      )}
       {/* Top Header Banner */}
       <div className="bg-gradient-to-r from-zinc-900 via-indigo-950/40 to-zinc-900 border border-indigo-500/30 rounded-xl p-6 shadow-xl relative overflow-hidden">
         <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -328,7 +361,7 @@ export const SecurityTelemetryDashboard: React.FC = () => {
               <span className="px-2.5 py-0.5 text-xs font-mono font-medium uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full">
                 SHA-256 Hash Chain Immutability
               </span>
-              <span className="px-2.5 py-0.5 text-xs font-mono font-medium uppercase bg-blue-500/20 text-blue-300 border-blue-500/30 rounded-full">
+              <span className="px-2.5 py-0.5 text-xs font-mono font-medium uppercase bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded-full">
                 Ring Buffer (5,000 Capacity)
               </span>
             </div>
@@ -365,6 +398,35 @@ export const SecurityTelemetryDashboard: React.FC = () => {
               title="Refresh Telemetry"
             >
               <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+            <button
+              onClick={async () => {
+                const password = window.prompt('Enter password to encrypt CSV export:');
+                if (!password) return;
+                try {
+                  const res = await fetch('/api/telemetry/export-encrypted', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ events: filteredEvents, password })
+                  });
+                  const data = await res.json();
+                  if (data.success) {
+                    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `audit_export_${new Date().toISOString()}.enc`;
+                    a.click();
+                    alert('Export encrypted and downloaded.');
+                  }
+                } catch (err) {
+                  console.error('Export failed:', err);
+                }
+              }}
+              className="p-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-500 transition"
+              title="Export Encrypted CSV"
+            >
+              <Share2 className="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -440,8 +502,21 @@ export const SecurityTelemetryDashboard: React.FC = () => {
             <Terminal className="w-3.5 h-3.5" />
             Telemetry Engine CLI Trace
           </button>
+          <button
+            onClick={() => setActiveSubTab('token_management')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-2 whitespace-nowrap ${
+              activeSubTab === 'token_management'
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'bg-zinc-800/80 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
+            }`}
+          >
+            <Wallet className="w-3.5 h-3.5" />
+            Token Management
+          </button>
         </div>
       </div>
+
+      {activeSubTab === 'token_management' && <TokenDashboard userId="operator_alpha" />}
 
       {/* SUB-TAB 1: LIVE AUDIT FEED & QUICK EMISSION */}
       {activeSubTab === 'live_feed' && (
@@ -507,7 +582,7 @@ export const SecurityTelemetryDashboard: React.FC = () => {
               <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Search action, source, actor, hash..."
+                placeholder="Search action, source, actor, hash, status, severity..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full bg-zinc-950 border border-zinc-700 rounded-lg pl-9 pr-3 py-1.5 text-xs text-zinc-200 outline-none placeholder:text-zinc-600 font-mono"

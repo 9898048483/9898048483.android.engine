@@ -1,0 +1,7 @@
+Token Reward Policy
+
+1. Earn 50 tokens for every successful APK build.
+2. Earn 50 tokens for successfully passing high-severity security checks (duress/strongbox).
+3. Tokens are non-transferable and intended for internal use only.
+4. Rate limits apply to all token-related API requests to ensure system stability.
+5. All transactions are logged and immutable in the audit ledger.

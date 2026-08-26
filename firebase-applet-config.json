@@ -7,5 +7,10 @@
   "messagingSenderId": "179708014113",
   "measurementId": "",
   "oAuthClientId": "179708014113-plm4rkncrtqgmi1mhl2f093mu8dndccg.apps.googleusercontent.com",
-  "recaptchaSiteKey": ""
+  "recaptchaSiteKey": "",
+  "androidConfig": {
+    "packageName": "ai.securespace.securespaceclient",
+    "sha1Certificate": "29:27:26:6F:E3:6B:62:26:12:6D:D4:11:C8:44:F9:26:F2:75:93:7B",
+    "sha256Certificate": "99:62:5F:CD:FD:F1:4C:0F:0D:F0:13:E4:6F:2F:2A:13:8C:86:6C:23:D9:08:3D:1E:59:FA:EC:F7:45:D5:76:49"
+  }
 }
