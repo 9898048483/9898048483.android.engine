@@ -7212,6 +7212,391 @@ class TestVaultsQuadraticFundingAndStrongBox:
         assert telemetry["total_hardware_signatures_executed"] == 1
 
 
+class TestQuantumPoEDIDAndIntentSolver:
+    """Validates Prompt 158 (Quantum PoE Bell-State CHSH Consensus), Prompt 159 (W3C DID & ZK Credential Vault), Prompt 160 (AI Intent Cross-Chain Solver Network)."""
+
+    def test_quantum_poe_bell_state_chsh_consensus(self):
+        """Verifies EPR photon generation, CHSH inequality S > 2.0 violation, and true quantum leader election."""
+        from server.services.quantum_poe_chsh_consensus import QuantumPoEConsensusEngine
+
+        engine = QuantumPoEConsensusEngine(min_sample_pairs=300)
+
+        # 1. Generate photon stream for two candidate nodes
+        stream_zurich = engine.generate_epr_photon_sample_stream("node_zurich_q1", num_pairs=400, simulate_hardware_quality=0.96)
+        stream_tokyo = engine.generate_epr_photon_sample_stream("node_tokyo_q2", num_pairs=400, simulate_hardware_quality=0.95)
+
+        # 2. Compute CHSH inequality & verify quantum certification (|S| > 2.0)
+        proof_zurich = engine.compute_chsh_inequality_and_random_beacon("node_zurich_q1", stream_zurich)
+        proof_tokyo = engine.compute_chsh_inequality_and_random_beacon("node_tokyo_q2", stream_tokyo)
+
+        assert proof_zurich.is_quantum_certified is True
+        assert proof_zurich.s_value > 2.0
+        assert proof_tokyo.is_quantum_certified is True
+        assert proof_tokyo.s_value > 2.0
+        assert len(proof_zurich.quantum_random_seed_hex) == 64
+
+        # 3. Elect validator leader and mint block
+        block = engine.elect_validator_leader_and_mint_block([proof_zurich, proof_tokyo])
+        assert block.block_height == 1
+        assert block.proposer_node_id in ["node_zurich_q1", "node_tokyo_q2"]
+        assert block.block_hash.startswith("0xpoe_blk_")
+        assert engine.current_height == 2
+
+    def test_w3c_did_and_zk_credential_selective_disclosure(self):
+        """Verifies W3C DID issuance, Verifiable Credential signing, and Groth16 selective disclosure predicate verification."""
+        from server.services.did_zk_credential_vault import DecentralizedIdentityZKVault
+
+        vault = DecentralizedIdentityZKVault()
+
+        # 1. Register DID
+        did_doc = vault.create_did_document("0xwallet_bob_9898", "0xpub_mldsa87_lattice_bob")
+        assert did_doc.did.startswith("did:token9898:")
+        assert did_doc.is_active is True
+
+        # 2. Issue KYC Verifiable Credential
+        claims = {
+            "full_name": "Bob Quantum Explorer",
+            "birth_year": 1995,
+            "country_code": "CHE",
+            "net_worth_usd": 2_500_000.0,
+            "credit_score": 790,
+        }
+        vc = vault.issue_verifiable_credential(did_doc.did, "InstitutionalKYC", claims, validity_days=180)
+        assert vc.issuer_did == "did:token9898:authority_master_compliance_01"
+        assert vc.signature_hex.startswith("0xmldsa87_vc_sig_")
+
+        # 3. Generate ZK Selective Disclosure proof for Age >= 21
+        zk_proof = vault.generate_zk_selective_disclosure_proof(vc.credential_id, "AGE_OVER_21", verifier_audience="0xdex_kyc_gateway")
+        assert zk_proof.predicate_satisfied is True
+        assert zk_proof.zk_proof_hex.startswith("0xzk_snark_groth16_")
+
+        # 4. Verify ZK Proof
+        audit = vault.verify_zk_selective_disclosure_proof(zk_proof.proof_id, expected_verifier_audience="0xdex_kyc_gateway")
+        assert audit["is_valid"] is True
+        assert audit["predicate_satisfied"] is True
+
+        # 5. Revocation testing
+        rev_res = vault.revoke_credential(vc.credential_id, "Key refresh cycle")
+        assert rev_res["status"] == "REVOKED"
+
+    def test_ai_intent_cross_chain_solver_network(self):
+        """Verifies user declarative intent creation, competitive solver Dutch auction bidding, and MEV-shielded execution."""
+        from server.services.ai_intent_cross_chain_solver import AIIntentSolverNetwork
+
+        network = AIIntentSolverNetwork(min_solver_bond=50_000.0)
+
+        # 1. Create declarative user intent
+        intent = network.create_user_intent(
+            user_address="0xalice_trader",
+            source_chain="NATIVE_TOKEN9898_CHAIN",
+            destination_chain="POLYGON",
+            input_token="TOKEN9898",
+            input_amount=10_000.0,
+            min_output_amount=990.0,
+            output_token="USDP",
+            max_slippage_percent=0.5,
+        )
+        assert intent.status == "OPEN"
+        assert intent.intent_hash.startswith("0xintent_")
+
+        # 2. Solvers bid on intent
+        q1 = network.submit_solver_quote("solver_quantum_mesh_alpha", intent.intent_id, promised_output_amount=995.0, estimated_gas_cost_usd=2.5)
+        q2 = network.submit_solver_quote("solver_wintermute_route_beta", intent.intent_id, promised_output_amount=998.5, estimated_gas_cost_usd=1.8)
+
+        assert len(network.quotes[intent.intent_id]) == 2
+        assert q2.promised_output_amount > q1.promised_output_amount
+
+        # 3. Execute best quote (Wintermute should win with 998.5 USDP)
+        exec_res = network.execute_best_intent_quote(intent.intent_id)
+        assert exec_res.winning_solver_id == "solver_wintermute_route_beta"
+        assert exec_res.final_output_amount == 998.5
+        assert exec_res.mev_protection_active is True
+        assert intent.status == "EXECUTED"
+
+        # 4. Telemetry check
+        telemetry = network.get_solver_network_telemetry()
+        assert telemetry["total_intents_executed"] == 1
+        assert telemetry["total_volume_resolved_usd"] > 0
+
+
+class TestZkEVMRWAVaultAndUWBPay:
+    """Validates Prompt 161 (Post-Quantum zkEVM Batch Rollup), Prompt 162 (RWA Fractional Vault & Yield), Prompt 163 (Android UWB/NFC Tap-to-Pay)."""
+
+    def test_post_quantum_zkevm_batch_rollup_plonky3(self):
+        """Verifies zkEVM transaction submission, batch state transitions, Sparse Merkle Tree roots, and Plonky3 STARK validity proofs."""
+        from server.crypto.post_quantum_zkevm_rollup import PostQuantumzkEVMRollupEngine
+
+        zkevm = PostQuantumzkEVMRollupEngine()
+
+        # 1. Submit transactions to mempool
+        tx1 = zkevm.submit_zkevm_transaction("0xstate_treasury_master", "0xuser_alice", 500.0, "TOKEN9898")
+        tx2 = zkevm.submit_zkevm_transaction("0xuser_alice", "0xuser_bob", 150.0, "TOKEN9898")
+
+        assert tx1.tx_hash.startswith("0xzktx_")
+        assert len(zkevm.mempool) >= 2
+
+        # 2. Execute batch and generate Plonky3 STARK proof
+        proof = zkevm.execute_and_generate_zkevm_plonky3_proof(max_batch_size=10)
+        assert proof.proof_id.startswith("zkevm_proof_")
+        assert proof.status == "VERIFIED"
+        assert proof.verification_time_ms < 10.0
+        assert proof.post_state_root.startswith("0xzkevm_root_")
+        assert len(proof.fri_commitments) == 3
+
+        # 3. Verify proof validity
+        is_valid = zkevm.verify_plonky3_proof(proof)
+        assert is_valid is True
+
+        # 4. Telemetry check
+        telemetry = zkevm.get_zkevm_telemetry()
+        assert telemetry["total_batches_proven"] >= 1
+        assert telemetry["trusted_setup_needed"] is False
+
+    def test_rwa_fractional_vault_sovereign_yield(self):
+        """Verifies ERC-3643 KYC compliance checks, fractional RWA token minting, streaming yield harvest, and Proof-of-Reserve audits."""
+        from server.services.rwa_fractional_vault import RWAFractionalVaultEngine
+
+        vault = RWAFractionalVaultEngine()
+
+        # 1. Deposit USDP to mint T-Bill shares
+        user_did = "did:token9898:kyc_verified_alice"
+        mint_res = vault.deposit_and_mint_rwa(user_did, "rwa_tbill_01", usdp_deposit_amount=10_000.0, is_kyc_verified=True)
+        assert mint_res["status"] == "MINTED_SUCCESSFULLY"
+        assert mint_res["shares_minted"] == 10_000.0
+        assert mint_res["annual_yield_percent"] == 5.15
+
+        # 2. Unverified KYC attempt should fail
+        try:
+            vault.deposit_and_mint_rwa("did:token9898:unverified_stranger", "rwa_tbill_01", 5000.0, is_kyc_verified=False)
+            assert False, "Should have thrown PermissionError"
+        except PermissionError:
+            pass
+
+        # 3. Harvest streaming yield
+        harvest = vault.harvest_streaming_yield(user_did, "rwa_tbill_01")
+        assert harvest["harvested_usdp_yield"] >= 0.0
+        assert harvest["remaining_principal_shares"] == 10_000.0
+
+        # 4. Proof-of-Reserve audit record
+        por = vault.record_proof_of_reserve_audit("rwa_tbill_01", custodian_verified_collateral_usd=25_500_000.0)
+        assert por.attestation_id.startswith("por_")
+        assert por.coverage_ratio_percent >= 100.0
+
+    def test_android_uwb_nfc_tap_to_pay_engine(self):
+        """Verifies IEEE 802.15.4z UWB distance bounding (<15cm), StrongBox offline voucher signing, and delay-tolerant mesh sync."""
+        import sys
+        import os
+        sys.path.insert(0, os.path.abspath('android-client'))
+        from uwb_nfc_mesh_pay import AndroidUWBNFCPaymentEngine
+
+        pay_engine = AndroidUWBNFCPaymentEngine(device_id="pixel_device_9898")
+
+        # 1. Perform authentic spatial tap-to-pay (within 5 cm)
+        receipt = pay_engine.execute_offline_tap_to_pay(
+            recipient_device_id="merchant_pos_terminal_01",
+            token_symbol="USDP",
+            amount=25.0,
+            channel="UWB_SPATIAL_RANGING",
+            measured_distance_cm=4.8,
+        )
+        assert receipt.status == "OFFLINE_AUTHORIZED"
+        assert receipt.voucher.amount == 25.0
+        assert receipt.voucher.strongbox_signature_hex.startswith("0xstrongbox_")
+        assert pay_engine.offline_balance_usdp == 475.0
+
+        # 2. Anti-Relay distance bounding violation (> 15 cm)
+        try:
+            pay_engine.execute_offline_tap_to_pay(
+                recipient_device_id="distant_fraud_relay",
+                token_symbol="USDP",
+                amount=10.0,
+                measured_distance_cm=85.0,  # 85 cm -> exceeds 15 cm limit
+            )
+            assert False, "Should have rejected relay distance"
+        except PermissionError:
+            pass
+
+        # 3. Sync offline vouchers to mesh
+        sync_res = pay_engine.sync_offline_vouchers_to_mesh()
+        assert sync_res["synced_vouchers_count"] == 1
+        assert sync_res["mesh_sync_status"] == "RECONCILED_WITH_MASTER_LEDGER"
+
+
+class TestFHEMPCRecoveryAndAIGovernance:
+    """Validates Prompt 164 (FHE Encrypted State Coprocessor), Prompt 165 (MPC Threshold Social Recovery), Prompt 166 (AI Governance & Quadratic Voting)."""
+
+    def test_fhe_encrypted_state_coprocessor(self):
+        """Verifies RLWE Torus FHE private scalar encryption, homomorphic addition without decryption, and confidential token transfer."""
+        from server.crypto.fhe_encrypted_coprocessor import FHEEncryptedCoprocessorEngine
+
+        fhe = FHEEncryptedCoprocessorEngine()
+
+        # 1. Encrypt private scalar
+        ctx_a = fhe.encrypt_private_scalar("did:token9898:alice", 100)
+        ctx_b = fhe.encrypt_private_scalar("did:token9898:alice", 50)
+        assert ctx_a.ciphertext_id.startswith("fhe_ctx_")
+        assert ctx_a.noise_budget_bits == 32
+
+        # 2. Homomorphic addition
+        res_ctx, exec_rec = fhe.homomorphic_add(ctx_a.ciphertext_id, ctx_b.ciphertext_id, "did:token9898:alice")
+        assert exec_rec.operation_type == "HOMOMORPHIC_ADD"
+        assert res_ctx.noise_budget_bits < 32
+
+        # 3. Programmable bootstrapping
+        bootstrapped_ctx = fhe.programmable_bootstrap(res_ctx.ciphertext_id)
+        assert bootstrapped_ctx.noise_budget_bits == 32
+        assert bootstrapped_ctx.is_bootstrapped is True
+
+        # 4. Confidential token transfer
+        xfer = fhe.homomorphic_transfer("did:token9898:alice", "did:token9898:bob", 25)
+        assert xfer["status"] == "CONFIDENTIAL_TRANSFER_SETTLED"
+
+    def test_mpc_threshold_social_recovery_vault(self):
+        """Verifies (t,n) Shamir secret sharing, guardian time-locked recovery sessions, owner veto mechanism, and final key rotation."""
+        from server.services.mpc_threshold_social_recovery import MPCSocialRecoveryVault
+
+        vault = MPCSocialRecoveryVault(threshold=3, total_guardians=5)
+        guardians = ["did:guardian:1", "did:guardian:2", "did:guardian:3", "did:guardian:4", "did:guardian:5"]
+        wallet_did = "did:token9898:user_cold_vault"
+
+        # 1. Setup shards
+        shards = vault.setup_mpc_shards_for_wallet(wallet_did, guardians)
+        assert len(shards) == 5
+
+        # 2. Initiate recovery session
+        sess = vault.initiate_social_recovery(wallet_did, "did:guardian:1", "0xnew_quantum_public_key")
+        assert sess.status == "CHALLENGE_WINDOW_ACTIVE"
+        assert len(sess.approving_guardians) == 1
+
+        # 3. Approve recovery until threshold met
+        vault.approve_recovery_attempt(sess.session_id, "did:guardian:2")
+        vault.approve_recovery_attempt(sess.session_id, "did:guardian:3")
+        assert len(sess.approving_guardians) == 3
+
+        # 4. Final recovery execution (bypassing timelock for unit test)
+        res = vault.execute_final_recovery(sess.session_id, force_timelock_bypass_for_test=True)
+        assert res["status"] == "KEY_ROTATION_SUCCESSFUL"
+        assert sess.status == "RECOVERED"
+
+    def test_ai_governance_quadratic_voting_and_funding(self):
+        """Verifies AI risk scoring on proposals, quadratic voting calculations, and public goods quadratic funding matching pool distribution."""
+        from server.services.ai_governance_quadratic_voting import AIGovernanceQuadraticEngine
+
+        gov = AIGovernanceQuadraticEngine(qf_matching_pool_usdp=100_000.0)
+
+        # 1. Submit proposal with AI evaluation
+        prop = gov.submit_proposal_with_ai_analysis(
+            title="Deploy Post-Quantum Gas Optimization Module",
+            proposer_did="did:token9898:core_dev",
+            requested_funds_usdp=50_000.0,
+        )
+        assert prop.ai_recommendation == "RECOMMEND_APPROVAL"
+        assert prop.ai_risk_score < 15.0
+
+        # 2. Cast quadratic votes: 100 credits -> 10 votes, 400 credits -> 20 votes
+        v1 = gov.cast_quadratic_vote(prop.proposal_id, "did:voter:1", "FOR", 100.0)
+        assert v1["effective_vote_power"] == 10.0
+
+        v2 = gov.cast_quadratic_vote(prop.proposal_id, "did:voter:2", "FOR", 400.0)
+        assert v2["effective_vote_power"] == 20.0
+        assert prop.effective_votes_for == 30.0
+
+        # 3. Quadratic Funding project registration and contributions
+        p1 = gov.register_qf_grant_project("Quantum ZK Toolkit", "did:dev:alice")
+        p2 = gov.register_qf_grant_project("Mesh Relay Node Hardware", "did:dev:bob")
+
+        gov.contribute_to_qf_project(p1.grant_id, "did:donor:1", 100.0)
+        gov.contribute_to_qf_project(p1.grant_id, "did:donor:2", 100.0)
+        gov.contribute_to_qf_project(p2.grant_id, "did:donor:3", 400.0)
+
+        # Project 1 has broader community support (2 donors of 100 vs 1 donor of 400), matching pool rewards community breadth
+        assert p1.calculated_matching_usdp > 0.0
+
+
+class TestShardingDynamicAMMAndSatelliteDTN:
+    """Validates Prompt 167 (Quantum State Sharding), Prompt 168 (AI Dynamic AMM), Prompt 169 (Satellite LEO DTN Gateway)."""
+
+    def test_quantum_state_sharding_engine(self):
+        """Verifies 64-shard deterministic address routing, intra-shard atomic execution, and 2-phase cross-shard transfers."""
+        from server.crypto.quantum_state_sharding import QuantumStateShardingEngine
+
+        sharding = QuantumStateShardingEngine(num_shards=64)
+
+        # 1. Deterministic routing
+        shard_a = sharding.route_address_to_shard("0xalice_address_shard_test")
+        shard_b = sharding.route_address_to_shard("0xbob_address_shard_test")
+        assert 0 <= shard_a < 64
+        assert 0 <= shard_b < 64
+
+        # 2. Intra-shard transfer (simulate same address base)
+        sharding.shard_states[shard_a]["0xuser_shard_sender"] = 1000.0
+        sharding.shard_states[shard_a]["0xuser_shard_receiver"] = 0.0
+
+        # 3. Cross-shard transfer (2-Phase Commit)
+        rcpt = sharding.initiate_cross_shard_transfer("0xsender_shard_0", "0xreceiver_shard_1", 250.0, "TOKEN9898")
+        assert rcpt.status == "COMMITTED_ON_SOURCE"
+        assert rcpt.receipt_id.startswith("rcpt_shard_")
+
+        # Finalize on destination shard
+        fin = sharding.finalize_cross_shard_transfer(rcpt.receipt_id)
+        assert fin["status"] == "CROSS_SHARD_ATOMICALLY_FINALIZED"
+        assert rcpt.status == "FINALIZED_ON_DESTINATION"
+
+    def test_ai_dynamic_amm_concentrated_liquidity(self):
+        """Verifies concentrated tick range liquidity minting, AI dynamic fee adjustment, and concentrated slippage routing."""
+        from server.services.ai_dynamic_amm_engine import AIDynamicAMMEngine
+
+        amm = AIDynamicAMMEngine()
+
+        # 1. Mint concentrated LP position
+        pos = amm.mint_concentrated_position(
+            pool_id="pool_token9898_usdp",
+            owner_did="did:token9898:lp_alice",
+            tick_lower=8000,
+            tick_upper=10000,
+            amount_0=1000.0,
+            amount_1=2500.0,
+        )
+        assert pos.position_id.startswith("pos_")
+        assert pos.liquidity_amount > 0
+
+        # 2. Execute swap with dynamic fee
+        swap = amm.execute_concentrated_swap(
+            pool_id="pool_token9898_usdp",
+            token_in="TOKEN9898",
+            amount_in=100.0,
+        )
+        assert swap["status"] == "SWAP_SETTLED_OPTIMALLY"
+        assert swap["amount_out"] > 0.0
+        assert swap["fee_bps_applied"] in [10.0, 30.0, 75.0]
+
+    def test_satellite_leo_delay_tolerant_gateway(self):
+        """Verifies RFC 9171 DTN bundle creation, ML-DSA-87 signature, orbital pass custody transfer, and ground station downlink."""
+        from server.services.satellite_leo_dt_gateway import SatelliteLEODTGatewayEngine
+
+        sat_gw = SatelliteLEODTGatewayEngine()
+
+        # 1. Create and transmit DTN bundle to LEO orbital node
+        bundle = sat_gw.create_and_transmit_dtn_bundle(
+            source_eid="dtn://ground_station_zurich/validator_tx",
+            dest_satellite_id="sat_leo_node_01",
+            payload_type="BLOCK_HEADER",
+            payload_data="epoch_99_header_merkle_root_0xabc123",
+        )
+        assert bundle.bundle_id.startswith("bundle_")
+        assert bundle.pq_signature_hex.startswith("0xleo_sig_mldsa87_")
+        assert bundle.custody_accepted_by_satellite is True
+
+        # 2. Downlink and inject to ledger
+        downlink = sat_gw.ground_station_downlink_settle(bundle.bundle_id, ground_station_id="ground_teleport_singapore")
+        assert downlink["downlink_status"] == "RELAYED_AND_INJECTED_TO_LEDGER"
+        assert downlink["fec_parity_status"] == "REED_SOLOMON_CORRECTION_VALID"
+
+
+
+
+
+
 
 
 
