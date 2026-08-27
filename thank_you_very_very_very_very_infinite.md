@@ -18,26 +18,26 @@ Over more than 215 comprehensive developmental modules and prompts, this project
 ---
 
 ## 🇮🇳 The Unified Council of Master Engineers & System Architects
-*Representing the boundless spirit of unity, ingenuity, and collaboration across all traditions (Hindu, Muslim, Sikh, Christian, Buddhist, Parsi, and Jain).*
+*Representing the boundless spirit of unity, ingenuity, and collaboration across all foundational engineering domains.*
 
-| # | Engineering Role & Specialization | Lead Architect / Imaginary Indian Engineer | Module / Domain Contribution |
-|---|----------------------------------|--------------------------------------------|------------------------------|
-| 1 | **Chief Post-Quantum Cryptographer** | **Dr. Aarav Vikram Sharma** (Hindu) | ML-KEM-1024 / ML-DSA-87 Lattice Engines, Falcon Signatures |
-| 2 | **Zero-Knowledge Protocol Architect** | **Zaid Mohammad Al-Hashmi** (Muslim) | Plonky2 zkDID, Verifiable Credentials, BBS+ Blinded Salts |
-| 3 | **Quantum Photonic & Entanglement Specialist** | **Gurpreet Singh Sandhu** (Sikh) | Quantum CHSH Non-Locality Consensus, Photonic Clocks, QRNG |
-| 4 | **FHE & Confidential Computing Lead** | **Joshua David Fernandes** (Christian) | TFHE / CKKS Homomorphic Lending Market & Confidential VM |
-| 5 | **AI Autonomous Swarm & zkML Scientist** | **Tenzin Wangchuk Dorje** (Buddhist) | Autonomous AI Swarm Consensus, zkML Model Weight Streaming |
-| 6 | **High-Frequency Smart Order Router (SOR) Lead** | **Rohan Hasmukh Patel** (Hindu) | Convex Splitting, Dijkstra Arbitrage, zkCLOB Optimization |
-| 7 | **Cross-Chain Interoperability & Intent Solver Lead** | **Farhan Tariq Siddiqui** (Muslim) | Multi-Domain Solver Network, Recursive Light Clients, HTLC |
-| 8 | **DePIN Satellite & Aerospace Network Engineer** | **Harjot Singh Bains** (Sikh) | LEO Optical Downlink, Proof-of-Data-Transit, ISL Space Mesh |
-| 9 | **Sovereign Wealth & Basel III Risk Architect** | **Christopher Thomas D'Souza** (Christian) | Multi-Jurisdictional Treasury Vaults (ADGM, GIFT City, MAS) |
-| 10 | **Synthetic Derivatives & Quantitative Structurer** | **Kavya Anand Swaminathan** (Hindu) | Perpetual Synthetic Stocks ($sNVDA$, $sSP500$) & Yield Bonds ($sUS10Y$) |
-| 11 | **Anti-Toxic MEV & JIT Liquidation Specialist** | **Irfan Kareem Mansoori** (Muslim) | Gradual Dutch Auction Liquidations (GDAL) & 90% MEV Rebates |
-| 12 | **RWA Tokenization & Green Energy DMRV Architect** | **Navjot Singh Ahluwalia** (Sikh) | Carbon Credit DMRV Registry, Solar/Wind Asset Fractionation |
-| 13 | **Mobile NPU Sentinel & Android StrongBox Engineer** | **Dr. Mary Philomena Joseph** (Christian) | Hardware-backed KeyStore, WorkManager Microchain Sync |
-| 14 | **Philosophy of Decentralization & Ethics Advisor** | **Arya Siddharth Gautama** (Buddhist) | Quadratic Funding, Retroactive Public Goods, Invariant Truth |
-| 15 | **Quantum Fault Tolerance & Storage Engineer** | **Jamshed Cyrus Batliwala** (Parsi) | Quantum Error Correcting (QEC) Code Storage & Sharding |
-| 16 | **Equilibrium Game Theorist & Mechanism Designer** | **Mahavir Vardhamana Mehta** (Jain) | Algorithmic Stability Reflexes & Non-Zero-Sum Tokenomics |
+| # | Engineering Role & Specialization | Module / Domain Contribution |
+|---|----------------------------------|------------------------------|
+| 1 | **Chief Post-Quantum Cryptographer** | ML-KEM-1024 / ML-DSA-87 Lattice Engines, Falcon Signatures |
+| 2 | **Zero-Knowledge Protocol Architect** | Plonky2 zkDID, Verifiable Credentials, BBS+ Blinded Salts |
+| 3 | **Quantum Photonic & Entanglement Specialist** | Quantum CHSH Non-Locality Consensus, Photonic Clocks, QRNG |
+| 4 | **FHE & Confidential Computing Lead** | TFHE / CKKS Homomorphic Lending Market & Confidential VM |
+| 5 | **AI Autonomous Swarm & zkML Scientist** | Autonomous AI Swarm Consensus, zkML Model Weight Streaming |
+| 6 | **High-Frequency Smart Order Router (SOR) Lead** | Convex Splitting, Dijkstra Arbitrage, zkCLOB Optimization |
+| 7 | **Cross-Chain Interoperability & Intent Solver Lead** | Multi-Domain Solver Network, Recursive Light Clients, HTLC |
+| 8 | **DePIN Satellite & Aerospace Network Engineer** | LEO Optical Downlink, Proof-of-Data-Transit, ISL Space Mesh |
+| 9 | **Sovereign Wealth & Basel III Risk Architect** | Multi-Jurisdictional Treasury Vaults (ADGM, GIFT City, MAS) |
+| 10 | **Synthetic Derivatives & Quantitative Structurer** | Perpetual Synthetic Stocks ($sNVDA$, $sSP500$) & Yield Bonds ($sUS10Y$) |
+| 11 | **Anti-Toxic MEV & JIT Liquidation Specialist** | Gradual Dutch Auction Liquidations (GDAL) & 90% MEV Rebates |
+| 12 | **RWA Tokenization & Green Energy DMRV Architect** | Carbon Credit DMRV Registry, Solar/Wind Asset Fractionation |
+| 13 | **Mobile NPU Sentinel & Android StrongBox Engineer** | Hardware-backed KeyStore, WorkManager Microchain Sync |
+| 14 | **Philosophy of Decentralization & Ethics Advisor** | Quadratic Funding, Retroactive Public Goods, Invariant Truth |
+| 15 | **Quantum Fault Tolerance & Storage Engineer** | Quantum Error Correcting (QEC) Code Storage & Sharding |
+| 16 | **Equilibrium Game Theorist & Mechanism Designer** | Algorithmic Stability Reflexes & Non-Zero-Sum Tokenomics |
 
 ---
 
