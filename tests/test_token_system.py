@@ -6141,6 +6141,215 @@ class TestQuantumProofOfEntanglementConsensus:
         assert ok3 is False
         assert "Replay attack" in msg3
 
+    def test_whitepaper_economic_valuation_model(self):
+        """Verifies institutional 2026-2030 valuation modeling, $1.00 USD target, and DOI authenticity."""
+        from server.services.whitepaper_economic_model import (
+            WhitepaperEconomicValuationEngine,
+            TOTAL_SUPPLY_CAP,
+            INSTITUTE_NAME,
+            INSTITUTE_LOCATION,
+        )
+
+        engine = WhitepaperEconomicValuationEngine()
+
+        # 1. Verify institutional attribution
+        assert engine.whitepaper_meta.institute == "AI Aayush Institute"
+        assert engine.whitepaper_meta.location == "Rajkot, Gujarat, India"
+        assert engine.whitepaper_meta.cryptographic_sha256_hash.startswith("0x")
+        assert len(engine.whitepaper_meta.core_theorems) >= 4
+
+        # 2. Verify default 2026-2030 roadmap trajectory
+        milestones = engine.milestones
+        assert len(milestones) == 5
+        assert milestones[0].year == 2026
+        assert milestones[0].projected_price_usd == 0.10
+        assert milestones[-1].year == 2030
+        assert milestones[-1].projected_price_usd >= 1.00
+        assert milestones[-1].cumulative_tokens_burned > 100_000_000_000.0
+
+        # 3. Dynamic scenario computation
+        scenario = engine.compute_custom_econometric_scenario(
+            adoption_growth_rate_pct=85.0,
+            annual_burn_rate_pct=2.5,
+            staking_lockup_ratio_pct=55.0,
+            por_annual_yield_pct=12.0,
+        )
+        assert scenario["milestone_status"] == "TARGET_1_USD_REACHED"
+        assert scenario["projected_2030_price_usd"] >= 1.00
+        assert len(scenario["timeline"]) == 5
+
+
+class TestGlobalPriceOracleAndAMMBondingCurve:
+    """Validates Prompt 132 (Oracle Aggregator) & Prompt 133 (AMM Bonding Curve Pool)."""
+
+    def test_global_price_oracle_bft_aggregation_and_pqc_attestation(self):
+        """Verifies multi-exchange tick ingestion, BFT medianizer, TWAP, and ML-DSA-87 attestation."""
+        from server.services.global_price_oracle_aggregator import (
+            GlobalPriceOracleAggregator,
+            RawPriceTick,
+        )
+
+        oracle = GlobalPriceOracleAggregator(target_peg_usd=0.10)
+        quote = oracle.compute_bft_aggregated_quote()
+
+        assert quote.token_symbol == "TOKEN9898"
+        assert 0.095 <= quote.median_price_usd <= 0.105
+        assert quote.is_pegged_stable is True
+        assert quote.active_sources_count >= 4
+        assert quote.quantum_attestation_sig.startswith("0xmldsa87_oracle_sig_")
+
+        # Ingest outlier tick (Flash loan attack simulation at $0.50)
+        oracle.ingest_price_tick(
+            source_name="malicious_dex",
+            price_usd=0.50,
+            volume_24h_usd=100000.0,
+            confidence_score=0.10,
+        )
+
+        # Median and BFT filtering must reject outlier
+        filtered_quote = oracle.compute_bft_aggregated_quote()
+        assert filtered_quote.median_price_usd <= 0.11
+        assert filtered_quote.is_pegged_stable is True
+
+    def test_amm_bonding_curve_virtual_reserves_and_anti_mev_commit_reveal(self):
+        """Verifies invariant curve math, concentrated virtual liquidity, dynamic fees, and commit-reveal swaps."""
+        from server.crypto.amm_bonding_curve import InvariantBondingCurvePool
+        import hashlib
+
+        pool = InvariantBondingCurvePool(
+            initial_token_reserve=100_000_000.0,
+            initial_usdc_reserve=10_000_000.0,
+            base_fee_pct=0.0005,
+        )
+
+        initial_spot = pool.get_spot_price()
+        assert abs(initial_spot - 0.10) < 0.001
+
+        # Commit phase
+        trader = "0xtrader_pixel_quantum_safe"
+        amount_in = 10_000.0  # 10,000 USDC
+        min_out = 90_000.0    # Expecting ~100,000 tokens
+        salt = "secret_anti_frontrun_salt_9898"
+        commit_hash = hashlib.sha256(f"{amount_in}:{min_out}:{salt}".encode()).hexdigest()
+
+        commit_id = pool.commit_swap(trader_address=trader, commitment_hash=commit_hash)
+        assert commit_id.startswith("commit_")
+
+        # Reveal & Execute phase
+        result = pool.execute_swap(
+            trader_address=trader,
+            token_in="USDC",
+            amount_in=amount_in,
+            min_amount_out=min_out,
+            salt=salt,
+            commitment_id=commit_id,
+        )
+
+        assert result.token_in == "USDC"
+        assert result.token_out == "TOKEN9898"
+        assert result.amount_out > 90_000.0
+        assert result.fee_percentage >= 0.05
+        assert result.slippage_percent >= 0.0
+
+
+class TestCrossChainBridgeAndStakingRewardEngine:
+    """Validates Prompt 134 (Cross-Chain Liquidity Bridge) & Prompt 135 (Staking Reward Engine)."""
+
+    def test_cross_chain_outbound_and_inbound_relay_verification(self):
+        """Verifies threshold federation, ZK light client proofs, nonces, and anti-replay protection."""
+        from server.services.cross_chain_liquidity_bridge import (
+            CrossChainLiquidityBridgeEngine,
+            SUPPORTED_CHAINS,
+        )
+
+        bridge = CrossChainLiquidityBridgeEngine()
+
+        # 1. Outbound Lock-and-Mint to Ethereum
+        sender = "0xsender_native_enclave"
+        recipient = "0xeth_recipient_address_vitalik"
+        packet = bridge.initiate_outbound_transfer(
+            sender_address=sender,
+            target_chain="ETHEREUM",
+            recipient_address=recipient,
+            amount=50_000.0,
+        )
+
+        assert packet.source_chain == "NATIVE"
+        assert packet.target_chain == "ETHEREUM"
+        assert packet.net_amount < packet.gross_amount
+        assert packet.bridge_fee_amount > 0.0
+        assert packet.zk_light_client_proof.startswith("0xzk_")
+        assert len(packet.validator_signatures) >= 5
+        assert packet.status == "ATTESTED"
+
+        # 2. Inbound Burn-and-Unlock from Solana
+        inbound_signatures = [f"0xval_sig_{i}" for i in range(5)]
+        inbound_packet = bridge.execute_inbound_unlock(
+            source_chain="SOLANA",
+            sender_address="SolanaSender111111111111111111111111111111111",
+            recipient_address="0xnative_receiver",
+            amount=25_000.0,
+            nonce=801,
+            zk_proof="0xzk_merkle_root_solana_state_inclusion",
+            validator_signatures=inbound_signatures,
+        )
+
+        assert inbound_packet.target_chain == "NATIVE"
+        assert inbound_packet.status == "EXECUTED"
+        assert inbound_packet.net_amount == 25_000.0 * 0.999
+
+        # 3. Replay Protection Test (Must fail on identical payload)
+        try:
+            bridge.execute_inbound_unlock(
+                source_chain="SOLANA",
+                sender_address="SolanaSender111111111111111111111111111111111",
+                recipient_address="0xnative_receiver",
+                amount=25_000.0,
+                nonce=801,
+                zk_proof="0xzk_merkle_root_solana_state_inclusion",
+                validator_signatures=inbound_signatures,
+            )
+            assert False, "Replay attack should have been blocked!"
+        except ValueError as e:
+            assert "Replay attack detected" in str(e)
+
+    def test_staking_reward_engine_tiers_and_early_slashing_burn(self):
+        """Verifies multi-tier lockups, post-quantum stk9898 receipt token, and premature slash-burn mechanics."""
+        from server.services.staking_reward_engine import (
+            StakingRewardEngine,
+            BURN_ADDRESS,
+        )
+
+        engine = StakingRewardEngine()
+        user = "0xlongterm_holder_9898"
+
+        # 1. Create 365-day staking position
+        pos = engine.stake_tokens(
+            staker_address=user,
+            amount=100_000.0,
+            tier_name="TIER_365D",
+        )
+
+        assert pos.tier_name == "TIER_365D"
+        assert pos.stk9898_receipt_token_id.startswith("stk9898_")
+        assert pos.effective_apy == 0.320 * 3.5  # 1.12 (112% APY)
+        assert pos.pqc_receipt_signature.startswith("0xmldsa87_stake_sig_")
+        assert pos.is_active is True
+
+        # 2. Premature unstake triggers slashing penalty redirected to burn address
+        unstake_res = engine.unstake_tokens(pos.position_id)
+        assert unstake_res.is_early_withdrawal is True
+        assert unstake_res.slashed_burn_amount == 25_000.0  # 25% of 100k
+        assert unstake_res.principal_returned == 75_000.0
+        assert unstake_res.burn_tx_hash.startswith("0xburn_slash_")
+
+        metrics = engine.get_staking_metrics()
+        assert metrics["total_tokens_slashed_and_burned"] >= 25_000.0
+        assert metrics["burn_vault_address"] == BURN_ADDRESS
+
+
+
+
 
 
 

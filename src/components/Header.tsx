@@ -18,7 +18,8 @@ import {
   Globe2,
   Cpu,
   BatteryMedium,
-  Server
+  Server,
+  Award
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -40,6 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const tabs = [
     { id: 'pipeline', label: 'CI/CD Pipeline', icon: Terminal, badge: pipelineRunning ? 'Building' : null },
+    { id: 'valuation_2030', label: '2026–2030 $1.00 USD Road (AI Aayush Inst)', icon: Award, highlight: true },
     { id: 'fastapi_backend', label: 'Prompt 14: FastAPI Backend', icon: Server, highlight: true },
     { id: 'local_nlp', label: 'Prompt 13: Local AI NLP Engine', icon: Brain, highlight: true },
     { id: 'kivy_gui', label: 'Prompt 12: Kivy GUI Layer', icon: Smartphone },
@@ -91,6 +93,19 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></div>
               <span>Output Directory: <strong className="text-emerald-300 font-mono">./dist</strong> (Writable)</span>
             </div>
+
+            <button
+              id="valuation-portal-quick-btn"
+              onClick={() => setActiveTab('valuation_2030')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${
+                activeTab === 'valuation_2030'
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-500/10'
+                  : 'bg-indigo-950/50 hover:bg-indigo-900/60 text-indigo-300 border-indigo-700/60'
+              }`}
+            >
+              <Award className="h-3.5 w-3.5 text-amber-400" />
+              <span>2030 $1.00 USD Road</span>
+            </button>
 
             <button
               id="google-auth-btn"
