@@ -7121,6 +7121,98 @@ class TestFalconBridgeRingCTAndStoragePinner:
         assert post_res["healthy_shards_responding"] >= 8
 
 
+class TestVaultsQuadraticFundingAndStrongBox:
+    """Validates Prompt 155 (Automated Liquidity Vaults), Prompt 156 (Quadratic Funding RPGF), Prompt 157 (Android StrongBox Enclave)."""
+
+    def test_automated_liquidity_vaults_concentrated_rebalancing(self):
+        """Verifies liquidity deposit, tick range rebalancing, fee harvesting, and share redemption."""
+        from server.services.automated_liquidity_vaults import AutomatedLiquidityVaultEngine
+
+        vault = AutomatedLiquidityVaultEngine(initial_spot_price=0.10)
+
+        # 1. Deposit into vault
+        dep_res = vault.deposit_into_vault("0xuser_lp_alice", token_9898_amount=10000.0, usdp_amount=1000.0)
+        assert dep_res["shares_issued"] == 2000.0
+        assert dep_res["user_address"] == "0xuser_lp_alice"
+
+        # 2. Rebalance ticks upon spot price movement to 0.12
+        reb_res = vault.rebalance_ticks_to_spot(0.12, volatility_factor=1.2)
+        assert reb_res["status"] == "REBALANCED"
+        assert reb_res["new_spot_price"] == 0.12
+        assert reb_res["new_share_price"] >= 1.0
+        assert vault.total_rebalances == 1
+
+        # 3. Withdraw shares
+        wdraw_res = vault.withdraw_from_vault("0xuser_lp_alice", shares_to_redeem=1000.0)
+        assert wdraw_res["redeemed_shares"] == 1000.0
+        assert wdraw_res["received_token_9898"] > 0
+        assert wdraw_res["received_usdp"] > 0
+
+        # 4. Analytics
+        analytics = vault.get_vault_analytics()
+        assert analytics["vault_tvl_usd"] > 0
+        assert analytics["estimated_vault_apy_percent"] > 18.0
+
+    def test_quadratic_funding_retroactive_public_goods(self):
+        """Verifies quadratic matching weight calculation, sybil resistance weights, and pool disbursements."""
+        from server.services.quadratic_funding_retro import QuadraticFundingEngine
+
+        qf = QuadraticFundingEngine(default_matching_pool=100_000.0)
+
+        # 1. Submit contributions from multiple community members
+        c1 = qf.submit_grant_contribution("proj_zk_mesh", "0xdonor_1", amount_usdp=100.0, identity_trust_score=1.0)
+        c2 = qf.submit_grant_contribution("proj_zk_mesh", "0xdonor_2", amount_usdp=100.0, identity_trust_score=1.0)
+        c3 = qf.submit_grant_contribution("proj_zk_mesh", "0xdonor_3", amount_usdp=100.0, identity_trust_score=1.0)
+
+        # Single whale contribution to proj_quantum_audit
+        c4 = qf.submit_grant_contribution("proj_quantum_audit", "0xwhale", amount_usdp=300.0, identity_trust_score=0.5)
+
+        # 2. Verify quadratic matching allocates more to project with broader community support (3 distinct donors)
+        summary = qf.get_round_summary()
+        p_zk = next(p for p in summary["projects"] if p["project_id"] == "proj_zk_mesh")
+        p_audit = next(p for p in summary["projects"] if p["project_id"] == "proj_quantum_audit")
+
+        assert p_zk["contributors_count"] == 3
+        assert p_zk["allocated_matching_usdp"] > p_audit["allocated_matching_usdp"]
+
+        # 3. Finalize round and simulate disbursement
+        finalize_res = qf.finalize_and_distribute_round()
+        assert finalize_res["status"] == "FINALIZED_AND_DISTRIBUTED"
+        assert finalize_res["total_funds_disbursed_usdp"] > 0
+
+    def test_android_strongbox_hardware_enclave_keymaster(self):
+        """Verifies StrongBox hardware key isolation, certificate attestation, and hardware ECDSA signing."""
+        import sys
+        import os
+        sys.path.insert(0, os.path.abspath('android-client'))
+        from strongbox_hardware_enclave import AndroidStrongBoxEnclaveEngine
+
+        enclave = AndroidStrongBoxEnclaveEngine()
+
+        # 1. Generate hardware isolated keypair inside StrongBox
+        key = enclave.generate_strongbox_isolated_keypair(key_alias="vault_tx_signer")
+        assert key.key_alias == "vault_tx_signer"
+        assert key.attestation.security_level == "STRONGBOX_SECURITY_LEVEL_2"
+        assert key.attestation.verified_boot_state == "VERIFIED"
+
+        # 2. Hardware-backed signing
+        tx_hash = "0xhash_tx_token9898_transfer_77"
+        sig_res = enclave.sign_transaction_with_strongbox("vault_tx_signer", tx_hash, biometric_authenticated=True)
+        assert sig_res["hardware_isolated"] is True
+        assert sig_res["signature_der_hex"].startswith("3044")
+        assert sig_res["v"] == 27
+
+        # 3. Verify key attestation certificate
+        att_audit = enclave.verify_key_attestation_certificate("vault_tx_signer")
+        assert att_audit["attestation_valid"] is True
+        assert att_audit["root_of_trust"] == "Google Hardware Root CA Certificate"
+
+        # 4. Telemetry check
+        telemetry = enclave.get_enclave_telemetry()
+        assert telemetry["total_hardware_signatures_executed"] == 1
+
+
+
 
 
 
