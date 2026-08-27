@@ -8745,6 +8745,195 @@ class TestZKDIDSORSyntheticDerivatives:
         assert settle["settlement_tx_hash"].startswith("0xsyn_settle_")
 
 
+class TestFHEMEVIntentSettlement:
+    """Validates Prompt 210 (FHE Private Credit Lending), Prompt 211 (AI JIT Liquidation & MEV Protection), Prompt 212 (Cross-Chain Programmable Intent Settlement Network)."""
+
+    def test_fhe_private_credit_lending_market(self):
+        """Verifies homomorphic loan creation, encrypted interest accrual, solvency proofs, and private repayment."""
+        from server.services.fhe_private_credit_lending_market import FHEPrivateCreditLendingMarketEngine
+
+        fhe = FHEPrivateCreditLendingMarketEngine()
+
+        # 1. Create confidential loan with encrypted collateral and debt
+        loan = fhe.create_confidential_loan(
+            borrower_did="did:token9898:private_borrower_01",
+            pool_id="fhe_pool_usdp_prime_01",
+            raw_collateral_usdp=50_000.0,
+            raw_borrow_amount_usdp=30_000.0,
+        )
+        assert loan.position_id.startswith("fhe_loan_")
+        assert loan.encrypted_collateral_hex.startswith("0xtfhe_ct_collat_")
+        assert loan.encrypted_debt_principal_hex.startswith("0xtfhe_ct_debt_")
+        assert loan.status == "ACTIVE"
+
+        # 2. Evaluate homomorphic circuit computation without decrypting
+        eval_res = fhe.evaluate_homomorphic_interest_and_health(loan.position_id)
+        assert eval_res["status"] == "HOMOMORPHIC_ARITHMETIC_SUCCESS"
+        assert eval_res["is_solvent"] is True
+        assert eval_res["zk_fhe_solvency_attestation"].startswith("0xzk_fhe_solvency_proof_")
+
+        # 3. Repay loan and release collateral
+        repay = fhe.repay_confidential_loan(loan.position_id, borrower_did="did:token9898:private_borrower_01")
+        assert repay["status"] == "LOAN_FULLY_REPAID_COLLATERAL_RELEASED"
+        assert repay["repayment_receipt_hash"].startswith("0xtfhe_repay_receipt_")
+
+    def test_ai_dynamic_liquidation_mev_protection(self):
+        """Verifies Dutch auction discount ramp, Just-In-Time liquidation execution, and 90% MEV rebate distribution."""
+        from server.services.ai_dynamic_liquidation_mev_protection_engine import AIDynamicLiquidationMEVProtectionEngine
+
+        mev = AIDynamicLiquidationMEVProtectionEngine()
+
+        # 1. Check current Dutch auction discount
+        discount = mev.compute_current_auction_discount("liq_pos_alpha_01")
+        assert discount >= 0.0
+
+        # 2. Execute JIT fair liquidation
+        settlement = mev.execute_jit_liquidation(
+            position_id="liq_pos_alpha_01",
+            liquidator_did="did:token9898:keeper_bot_01",
+            repay_amount_usdp=25_000.0,
+        )
+        assert settlement.settlement_id.startswith("liq_set_")
+        assert settlement.debt_repaid_usdp == 25_000.0
+        assert settlement.borrower_rebate_returned_usdp > 0
+        assert settlement.fair_execution_proof_hex.startswith("0xzk_fair_liq_proof_")
+
+    def test_cross_chain_programmable_intent_settlement(self):
+        """Verifies declarative intent submission, solver competitive bidding, and recursive zk light client fulfillment."""
+        from server.services.cross_chain_programmable_intent_settlement_network import CrossChainProgrammableIntentSettlementNetworkEngine
+
+        intent_net = CrossChainProgrammableIntentSettlementNetworkEngine()
+
+        # 1. Submit declarative user cross-chain intent
+        intent = intent_net.submit_user_intent(
+            user_did="did:token9898:trader_bob",
+            source_chain="TOKEN9898_L1",
+            destination_chain="SOLANA_SVM",
+            source_token="USDP",
+            source_amount=10_000.0,
+            target_token="SOL",
+            min_target_amount=48.50,
+        )
+        assert intent.intent_id.startswith("intent_")
+        assert intent.status == "OPEN_FOR_SOLVERS"
+
+        # 2. Decentralized solver submits winning bid with bonded collateral
+        bid = intent_net.submit_solver_bid(
+            intent_id=intent.intent_id,
+            solver_did="did:token9898:fast_solver_007",
+            offered_target_amount=49.20,
+            bonded_collateral_usdp=11_500.0,
+        )
+        assert bid.bid_id.startswith("bid_")
+        assert bid.solver_pq_signature.startswith("0xmldsa87_solver_bid_sig_")
+        assert intent.status == "SOLVER_COMMITTED"
+
+        # 3. Settle with destination zk light client inclusion proof
+        receipt = intent_net.settle_intent_with_zk_proof(
+            intent_id=intent.intent_id,
+            solver_did="did:token9898:fast_solver_007",
+            destination_tx_hash="0xsolana_tx_sig_9812409812049",
+        )
+        assert receipt.receipt_id.startswith("receipt_")
+        assert receipt.zk_light_client_inclusion_proof_hex.startswith("0xzk_light_client_inclusion_proof_")
+        assert intent.status == "FULFILLED"
+
+
+class TestAIStreamDePINSovereignTreasury:
+    """Validates Prompt 213 (Quantum-Secure AI Model Weight Streaming & zkML Inference), Prompt 214 (DePIN Satellite Bandwidth Marketplace), Prompt 215 (Sovereign Wealth Multi-Jurisdictional Treasury Vault)."""
+
+    def test_quantum_secure_ai_model_weight_streaming(self):
+        """Verifies model registration, GPU compute provider onboarding, and zkML verifiable inference with USDP micropayments."""
+        from server.services.quantum_secure_ai_model_weight_streaming import QuantumSecureAIModelWeightStreamingEngine
+
+        ai_stream = QuantumSecureAIModelWeightStreamingEngine()
+
+        # 1. Register AI model
+        model = ai_stream.register_ai_model(
+            model_name="Quantum-Mistral-Large-zkML",
+            parameters_billion=123.0,
+            shards_count=64,
+            cost_per_million_tokens=0.75,
+            author_did="did:token9898:mistral_ai_mesh",
+        )
+        assert model.model_id.startswith("model_")
+        assert model.encrypted_weights_merkle_root.startswith("0xmerkle_weights_root_")
+
+        # 2. Register GPU Node
+        node = ai_stream.register_compute_node(
+            node_did="did:token9898:h100_node_eu_central",
+            gpu_hardware_specs="8x NVIDIA H100 SXM5",
+            bonded_stake_usdp=25_000.0,
+        )
+        assert node.node_did == "did:token9898:h100_node_eu_central"
+
+        # 3. Execute verifiable zkML inference
+        task = ai_stream.execute_verifiable_zkml_inference(
+            model_id=model.model_id,
+            consumer_did="did:token9898:ai_agent_client",
+            compute_node_did=node.node_did,
+            prompt_tokens=1500,
+            completion_tokens=500,
+        )
+        assert task.task_id.startswith("task_zkml_")
+        assert task.zkml_execution_proof_hex.startswith("0xhalo2_zkml_proof_")
+        assert task.pq_inference_signature.startswith("0xmldsa87_node_infer_sig_")
+        assert task.status == "VERIFIED"
+
+    def test_depin_satellite_bandwidth_marketplace(self):
+        """Verifies LEO satellite registration, ground station telemetry, and Proof-of-Data-Transit downlink sessions."""
+        from server.services.depin_satellite_bandwidth_marketplace import DePINSatelliteBandwidthMarketplaceEngine
+
+        depin = DePINSatelliteBandwidthMarketplaceEngine()
+
+        # 1. Register satellite
+        sat = depin.register_satellite(
+            norad_id="SAT_LEO_9898_02",
+            constellation_name="StarMesh-98",
+            altitude_km=520.0,
+            downlink_mbps=3000.0,
+            price_per_gb=0.040,
+            operator_did="did:token9898:orbital_systems",
+        )
+        assert sat.satellite_norad_id == "SAT_LEO_9898_02"
+
+        # 2. Execute downlink session with PoDT
+        session = depin.execute_downlink_session(
+            satellite_norad_id=sat.satellite_norad_id,
+            station_id="station_arctic_svalbard_01",
+            client_did="did:token9898:earth_observation_corp",
+            data_volume_gb=500.0,
+        )
+        assert session.session_id.startswith("sess_downlink_")
+        assert session.proof_of_transit_hash.startswith("0xpodt_space_transit_proof_")
+        assert session.total_settled_usdp == 20.0
+        assert session.status == "COMPLETED"
+
+    def test_sovereign_wealth_institutional_treasury_vault(self):
+        """Verifies jurisdictional sub-treasuries, Basel III LCR compliance, and 5-of-9 MPC yield sweeps."""
+        from server.services.sovereign_wealth_institutional_treasury_vault import SovereignWealthInstitutionalTreasuryVaultEngine
+
+        treasury = SovereignWealthInstitutionalTreasuryVaultEngine()
+
+        # 1. Check telemetry and LCR compliance
+        telemetry = treasury.get_treasury_vault_telemetry()
+        assert telemetry["active_jurisdictional_vaults_count"] >= 3
+        assert telemetry["average_liquidity_coverage_ratio_pct"] >= 150.0
+
+        # 2. Execute automated yield sweep with 5-of-9 post-quantum MPC proof
+        sweep = treasury.execute_yield_sweep(
+            jurisdiction_code="SG_MAS",
+            sweep_amount_usdp=10_000_000.0,
+            target_asset="SOVEREIGN_T_BILLS",
+            target_apr=5.40,
+        )
+        assert sweep.sweep_id.startswith("sweep_")
+        assert sweep.projected_annual_yield_usdp > 0
+        assert sweep.mpc_multisig_quorum_proof.startswith("0xmldsa87_5of9_mpc_quorum_")
+
+
+
+
 
 
 
