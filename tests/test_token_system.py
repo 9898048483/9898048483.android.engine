@@ -7027,6 +7027,101 @@ class TestZKMixerAndRecursiveSTARKRollup:
         assert telemetry["trusted_setup_required"] is False
 
 
+class TestFalconBridgeRingCTAndStoragePinner:
+    """Validates Prompt 152 (Falcon-1024 Bridge), Prompt 153 (Dynamic RingCT), Prompt 154 (Decentralized Storage Pinning)."""
+
+    def test_falcon1024_cross_chain_bridge_lattice_signatures(self):
+        """Verifies 5-of-9 Falcon-1024 post-quantum threshold signatures and target chain execution."""
+        from server.crypto.falcon_bridge_signer import Falcon1024CrossChainBridgeEngine
+
+        engine = Falcon1024CrossChainBridgeEngine()
+
+        # 1. Initiate cross-chain lock from Mesh to Ethereum
+        transfer = engine.initiate_cross_chain_lock(
+            source_chain="NATIVE_MESH",
+            target_chain="ETHEREUM",
+            sender_address="0xalice_mesh_sender",
+            recipient_address="0xbob_eth_recipient",
+            token_symbol="TOKEN9898",
+            amount=50000.0,
+            source_tx_hash="0xmesh_lock_tx_001",
+        )
+
+        assert transfer.transfer_id.startswith("bridge_")
+        assert transfer.status == "PENDING_ATTESTATION"
+        assert transfer.bridge_fee_tokens == 50.0
+
+        # 2. Submit 5 Falcon-1024 lattice signatures from relayers (Zurich, Tokyo, Frankfurt, Singapore, Delhi)
+        engine.submit_relayer_falcon_signature(transfer.transfer_id, "relayer_zurich_01")
+        engine.submit_relayer_falcon_signature(transfer.transfer_id, "relayer_tokyo_02")
+        engine.submit_relayer_falcon_signature(transfer.transfer_id, "relayer_frankfurt_03")
+        engine.submit_relayer_falcon_signature(transfer.transfer_id, "relayer_singapore_04")
+        engine.submit_relayer_falcon_signature(transfer.transfer_id, "relayer_delhi_05")
+
+        assert len(transfer.signatures) == 5
+        assert transfer.status == "QUORUM_REACHED"
+
+        # 3. Execute mint on target chain
+        res = engine.execute_mint_on_target_chain(transfer.transfer_id)
+        assert res["status"] == "EXECUTED_ON_TARGET"
+        assert res["minted_amount"] == 49950.0
+        assert res["target_tx_hash"].startswith("0xtarget_mint_")
+
+    def test_dynamic_ringct_confidential_transaction_and_key_image(self):
+        """Verifies 16-member ring generation, Bulletproofs range proofs, and double-spend key image protection."""
+        from server.crypto.dynamic_ring_signatures import DynamicRingCTEngine
+
+        engine = DynamicRingCTEngine()
+
+        # 1. Create a 16-member ring confidential transaction
+        tx = engine.create_confidential_ring_transaction(
+            real_sender_privkey="0xpriv_alice_spend_key",
+            real_sender_pubkey="0xpub_alice_spend_key",
+            amount=12500.0,
+            recipient_stealth_dest="0xstealth_dest_bob",
+            fee_tokens=0.05,
+        )
+
+        assert tx.ring_size == 16
+        assert len(tx.ring_members) == 16
+        assert tx.key_image.startswith("0xki_")
+        assert tx.bulletproof_range_proof.startswith("0xbp_proof_")
+        assert engine.verify_ring_transaction(tx) is True
+
+        # 2. Verify double-spend using the same key image is blocked
+        try:
+            engine.create_confidential_ring_transaction(
+                real_sender_privkey="0xpriv_alice_spend_key",
+                real_sender_pubkey="0xpub_alice_spend_key",
+                amount=5000.0,
+                recipient_stealth_dest="0xstealth_dest_charlie",
+            )
+            assert False, "Double spend with duplicate key image should raise ValueError"
+        except ValueError as e:
+            assert "Double-spend detected" in str(e)
+
+    def test_decentralized_storage_pinner_reed_solomon_and_post(self):
+        """Verifies 8-of-12 Reed-Solomon sharding, IPFS CID/Arweave generation, and Proof-of-Spacetime verification."""
+        from server.services.decentralized_storage_pinner import DecentralizedStoragePinningCluster
+
+        cluster = DecentralizedStoragePinningCluster()
+        payload = b"Quantum State Snapshot and AI Model Neural Weights for Token 9898048483"
+
+        # 1. Pin Encrypted Archive
+        archive = cluster.pin_encrypted_archive("state_snapshot_v1.bin", payload, "application/octet-stream")
+        assert archive.archive_id.startswith("arch_")
+        assert archive.ipfs_cid_v1.startswith("bafybeic")
+        assert archive.arweave_tx_id.startswith("ar_")
+        assert len(archive.shards) == 12  # 8 data + 4 parity
+
+        # 2. Verify Proof of Spacetime (PoST)
+        post_res = cluster.verify_proof_of_spacetime(archive.archive_id)
+        assert post_res["post_verification_status"] == "PASSED"
+        assert post_res["reconstruction_possible"] is True
+        assert post_res["healthy_shards_responding"] >= 8
+
+
+
 
 
 
