@@ -6348,6 +6348,691 @@ class TestCrossChainBridgeAndStakingRewardEngine:
         assert metrics["burn_vault_address"] == BURN_ADDRESS
 
 
+class TestMerchantPOSGatewayAndGovernanceDAO:
+    """Validates Prompt 136 (Merchant POS Gateway) & Prompt 137 (Governance DAO Engine)."""
+
+    def test_merchant_pos_invoice_nfc_tap_and_eod_batch_settlement(self):
+        """Verifies merchant registration, dynamic NFC/QR invoices, sub-second tap payment, and EOD batching."""
+        from server.api.merchant_pos_gateway import MerchantPOSGateway
+
+        pos = MerchantPOSGateway(oracle_price_usd=0.10)
+        merchant = pos.register_merchant(
+            business_name="Quantum Coffee Labs",
+            settlement_wallet_address="0xmerchant_settlement_vault_9898",
+            webhook_url="https://merchant.example.com/api/pos-webhook",
+        )
+
+        assert merchant.merchant_id.startswith("merch_")
+        assert len(merchant.active_terminals) > 0
+
+        # Create $5.00 USD Invoice (at $0.10 -> 50.0 Token 9898048483)
+        invoice = pos.create_pos_invoice(
+            merchant_id=merchant.merchant_id,
+            terminal_id=merchant.active_terminals[0],
+            fiat_amount=5.00,
+            fiat_currency="USD",
+        )
+
+        assert invoice.fiat_amount == 5.00
+        assert invoice.token_amount_due == 50.0
+        assert invoice.status == "UNPAID"
+        assert invoice.nfc_payload_uri.startswith("token9898://pos-pay?")
+
+        # Process tap payment
+        paid_inv = pos.process_tap_payment(
+            invoice_id=invoice.invoice_id,
+            payer_address="0xpayer_customer_phone_enclave",
+            signed_payment_proof="0xproof_sig_tap_9898",
+        )
+
+        assert paid_inv.status == "PAID"
+        assert paid_inv.receipt_hash.startswith("0xrec_")
+
+        # Execute EOD batch settlement
+        eod_batch = pos.execute_eod_batch_settlement(merchant.merchant_id)
+        assert eod_batch.total_invoices_settled == 1
+        assert eod_batch.total_token_revenue == 50.0
+        assert eod_batch.settlement_tx_hash.startswith("0xsettle_eod_")
+
+    def test_governance_dao_quadratic_voting_timelock_and_veto(self):
+        """Verifies proposal lifecycle, quadratic vote tallying, 48-hour timelock, and council veto safeguard."""
+        from server.services.governance_dao_engine import GovernanceDAOEngine
+
+        dao = GovernanceDAOEngine()
+        proposer = "0xdao_architect_whale"
+
+        # 1. Create Proposal
+        prop = dao.create_proposal(
+            proposer_address=proposer,
+            proposer_balance=150_000.0,
+            title="Deploy LoRa Relay Mesh Across Gujarat",
+            description="Allocate 500,000 tokens for hardware transceivers.",
+            category="TREASURY_GRANT",
+            execution_payload={"grant_amount": 500000.0, "region": "Gujarat, India"},
+        )
+
+        assert prop.proposal_id.startswith("prop_")
+        assert prop.status == "ACTIVE"
+
+        # 2. Quadratic voting (Sybil resistant: sqrt(100,000) * 1.5 reputation = 474.34 voting power)
+        vote = dao.cast_quadratic_vote(
+            proposal_id=prop.proposal_id,
+            voter_address="0xvoter_verified_npu",
+            voter_token_balance=100_000.0,
+            support=True,
+            reputation_score=1.5,
+        )
+
+        assert vote.quadratic_voting_power > 470.0
+        assert prop.votes_for >= vote.quadratic_voting_power
+
+        # Cast heavy votes to pass quorum
+        dao.cast_quadratic_vote(
+            proposal_id=prop.proposal_id,
+            voter_address="0xcommunity_pool",
+            voter_token_balance=400_000_000.0,  # sqrt(400M) = 20,000
+            support=True,
+            reputation_score=2.0,                # 20,000 * 2 = 40,000
+        )
+        dao.cast_quadratic_vote(
+            proposal_id=prop.proposal_id,
+            voter_address="0xvalidators_union",
+            voter_token_balance=250_000_000_000.0, # sqrt(250B) = 500,000
+            support=True,
+            reputation_score=1.0,
+        )
+
+        # 3. Queue proposal into 48-hr Timelock
+        queued_prop = dao.queue_proposal(prop.proposal_id)
+        assert queued_prop.status == "QUEUED"
+        assert queued_prop.eta_execution_timestamp > 0.0
+
+        # 4. Execute proposal (with test override flag)
+        executed_prop = dao.execute_proposal(prop.proposal_id, override_timelock_for_test=True)
+        assert executed_prop.status == "EXECUTED"
+        assert executed_prop.execution_tx_hash.startswith("0xdao_exec_")
+
+
+class TestViralReferralAndCollateralizedStablecoin:
+    """Validates Prompt 138 (Viral Referral Protocol) & Prompt 140 (Collateralized Stablecoin USDP)."""
+
+    def test_viral_referral_tiers_and_sybil_validation(self):
+        """Verifies blinded referral code creation, tier 1/tier 2 rewards, and Sybil hardware attestation."""
+        from server.services.viral_referral_engine import ViralReferralEngine
+
+        engine = ViralReferralEngine()
+
+        # 1. Inviter A generates blinded link
+        inviter_a = "0xinviter_alice_node"
+        link_a = engine.generate_referral_link(inviter_a)
+        assert link_a.referral_code.startswith("REF_")
+        assert link_a.inviter_address == inviter_a
+
+        # 2. Inviter B onboards under A (Tier 1)
+        node_b = "0xnode_bob_referee"
+        engine.register_onboarded_node(
+            referee_node_address=node_b,
+            referral_code=link_a.referral_code,
+            device_tee_attestation="0xandroid_strongbox_tee_valid_proof_12345",
+            uptime_hours=48.0,
+        )
+
+        # 3. Inviter B generates referral link and onboards Node C (Tier 2 for A, Tier 1 for B)
+        link_b = engine.generate_referral_link(node_b)
+        node_c = "0xnode_charlie_new"
+        engine.register_onboarded_node(
+            referee_node_address=node_c,
+            referral_code=link_b.referral_code,
+            device_tee_attestation="0xqualcomm_hexagon_npu_tee_attest_9898",
+            uptime_hours=36.0,
+        )
+
+        # 4. Node C activates and generates rewards (e.g. 1,000 base tokens)
+        payouts = engine.distribute_activity_rewards(
+            referee_node_address=node_c,
+            activity_base_tokens=1000.0,
+            event_type="NODE_ACTIVATION",
+        )
+
+        assert len(payouts) == 2
+        # Tier 1 to Bob (5% = 50 tokens)
+        p1 = next(p for p in payouts if p.tier_level == 1)
+        assert p1.beneficiary_address == node_b
+        assert p1.reward_tokens == 50.0
+
+        # Tier 2 to Alice (2% = 20 tokens)
+        p2 = next(p for p in payouts if p.tier_level == 2)
+        assert p2.beneficiary_address == inviter_a
+        assert p2.reward_tokens == 20.0
+
+    def test_collateralized_stablecoin_minting_and_dutch_liquidation(self):
+        """Verifies USDP over-collateralized minting (150% MCR) and autonomous Dutch auction liquidator."""
+        from server.services.collateralized_stablecoin import (
+            CollateralizedStablecoinEngine,
+            MINIMUM_COLLATERAL_RATIO,
+        )
+
+        engine = CollateralizedStablecoinEngine()
+        user = "0xstable_borrower_9898"
+
+        # 1. Lock 50,000 Token 9898048483 (at $0.10 = $5,000 collateral) and mint 2,500 USDP (200% CR >= 150% MCR)
+        vault = engine.open_vault_and_mint_usdp(
+            owner_address=user,
+            collateral_type="NATIVE_9898",
+            collateral_amount=50_000.0,
+            mint_amount_usdp=2500.0,
+        )
+
+        assert vault.vault_id.startswith("vault_")
+        assert vault.debt_usdp_minted == 2500.0
+        cr = engine.get_vault_collateral_ratio(vault.vault_id)
+        assert cr == 2.0  # 200%
+
+        # 2. Simulate collateral price drop from $0.10 to $0.06 ($3,000 collateral / 2,500 debt = 1.20 CR < 150%)
+        engine.update_oracle_price("NATIVE_9898", 0.06)
+        cr_dropped = engine.get_vault_collateral_ratio(vault.vault_id)
+        assert cr_dropped < MINIMUM_COLLATERAL_RATIO
+
+        # 3. Trigger autonomous Dutch auction liquidation
+        auction = engine.trigger_dutch_auction_liquidation(vault.vault_id)
+        assert auction.auction_id.startswith("dutch_auc_")
+        assert auction.is_completed is False
+
+        # 4. Liquidator buys collateral with USDP
+        liq_result = engine.buy_auction_collateral(
+            auction_id=auction.auction_id,
+            liquidator_address="0xliquidator_arbitrage_bot",
+            usdp_bid_amount=2500.0,
+        )
+
+        assert liq_result["auction_id"] == auction.auction_id
+        assert liq_result["collateral_acquired"] > 0
+        assert auction.is_completed is True
+
+
+class TestAutonomousMarketMakerAndDecentralizedEscrow:
+    """Validates Prompt 141 (Autonomous Market Maker & Arbitrage Bot) & Prompt 142 (Decentralized Escrow)."""
+
+    def test_autonomous_market_maker_arbitrage_scan_and_execution(self):
+        """Verifies multi-venue spread scan, profit calculation, Tor relay routing, and volatility circuit breaker."""
+        from server.ai.autonomous_market_maker_bot import AutonomousMarketMakerBot
+
+        amm_bot = AutonomousMarketMakerBot(initial_treasury_capital_usd=1_000_000.0)
+
+        # Set spread discrepancy: PancakeSwap ask = $0.0985, Uniswap V3 bid = $0.1030
+        amm_bot.update_venue_price("PANCAKESWAP", bid_price_usd=0.0980, ask_price_usd=0.0985)
+        amm_bot.update_venue_price("UNISWAP_V3", bid_price_usd=0.1030, ask_price_usd=0.1035)
+
+        opportunities = amm_bot.scan_cross_venue_arbitrage()
+        assert len(opportunities) > 0
+
+        best_opp = opportunities[0]
+        assert best_opp.is_profitable is True
+        assert best_opp.source_venue == "PANCAKESWAP"
+        assert best_opp.target_venue == "UNISWAP_V3"
+        assert best_opp.net_profit_usd > 0.0
+
+        # Execute trade
+        exec_res = amm_bot.execute_arbitrage_trade(best_opp)
+        assert exec_res.execution_id.startswith("exec_")
+        assert exec_res.realized_profit_usd > 0.0
+        assert exec_res.tor_relay_route_id.startswith("tor_onion_")
+        assert exec_res.treasury_sweep_tx_hash.startswith("0xsweep_treasury_")
+
+        # Verify Volatility Circuit Breaker
+        amm_bot.set_market_volatility(0.75)  # 75% volatility > 65% limit
+        assert amm_bot.is_circuit_breaker_tripped is True
+        assert len(amm_bot.scan_cross_venue_arbitrage()) == 0
+
+    def test_decentralized_escrow_milestones_and_multisig_dispute(self):
+        """Verifies 2-of-3 multi-sig escrow, milestone releases with delivery proof, and dispute resolution."""
+        from server.services.decentralized_escrow import DecentralizedEscrowEngine
+
+        escrow = DecentralizedEscrowEngine()
+        buyer = "0xbuyer_client_enclave"
+        seller = "0xseller_hardware_vendor"
+        arbitrator = "0xarbitrator_quantum_court"
+
+        milestones = [
+            {"title": "PCB Design & Firmware Flash", "amount_tokens": 40_000.0},
+            {"title": "Batch Delivery of 500 Transceivers", "amount_tokens": 60_000.0},
+        ]
+
+        # 1. Create and Fund Escrow Contract
+        contract = escrow.create_escrow_contract(
+            buyer_address=buyer,
+            seller_address=seller,
+            arbitrator_address=arbitrator,
+            milestone_definitions=milestones,
+            currency="TOKEN9898",
+        )
+
+        assert contract.contract_id.startswith("escrow_")
+        assert contract.total_amount_tokens == 100_000.0
+        assert contract.status == "CREATED"
+
+        escrow.deposit_escrow_funds(contract.contract_id, buyer, 100_000.0)
+        assert contract.status == "FUNDED"
+
+        # 2. Seller submits proof for Milestone 1
+        m1_id = contract.milestones[0].milestone_id
+        escrow.submit_milestone_proof(
+            contract_id=contract.contract_id,
+            milestone_id=m1_id,
+            seller_address=seller,
+            proof_of_delivery_hash="0xproof_pcb_firmware_sha256_abcdef",
+            proof_metadata_uri="ipfs://QmXoypizjW3WknFiJnKLwHCnL72vedxjQkDDP1mXWo6uco",
+        )
+
+        # Buyer approves and releases Milestone 1
+        rel_res = escrow.approve_and_release_milestone(contract.contract_id, m1_id, buyer)
+        assert rel_res["amount_released"] == 40_000.0
+        assert contract.released_total_tokens == 40_000.0
+
+        # 3. Raise dispute on remaining balance (60,000 tokens)
+        escrow.raise_dispute(contract.contract_id, buyer, "Hardware batch delayed beyond contract deadline")
+        assert contract.status == "DISPUTED"
+
+        # 4. Resolve dispute with 2-of-3 multi-sig (Arbitrator + Buyer allocate 50/50 split)
+        signatures = ["0xsig_buyer_accept_split", "0xsig_arbitrator_ruling_order"]
+        resolved_contract = escrow.resolve_dispute_with_multisig(
+            contract_id=contract.contract_id,
+            buyer_split_amount=30_000.0,
+            seller_split_amount=30_000.0,
+            signatures=signatures,
+        )
+
+        assert resolved_contract.status == "COMPLETED"
+        assert resolved_contract.resolution_tx_hash.startswith("0xdispute_settle_")
+
+
+class TestP2PFiatGatewayAndMobileMiningAccelerator:
+    """Validates Prompt 143 (P2P Fiat Gateway) & Prompt 144 (Mobile Mining Accelerator)."""
+
+    def test_p2p_fiat_escrow_lifecycle_and_encrypted_chat(self):
+        """Verifies multi-currency P2P offer creation, cryptographic escrow locking, E2E chat, and payment release."""
+        from server.services.p2p_fiat_gateway import P2PFiatGatewayEngine
+
+        gateway = P2PFiatGatewayEngine()
+        merchant_addr = "0xmerchant_delhi_upi_node"
+
+        # 1. Merchant creates INR sell offer for Token 9898048483
+        offer = gateway.create_p2p_offer(
+            merchant_address=merchant_addr,
+            offer_type="SELL",
+            crypto_currency="TOKEN9898",
+            fiat_currency="INR",
+            price_per_token_fiat=8.50,  # 8.50 INR (~$0.10 USD)
+            min_limit_fiat=1000.0,
+            max_limit_fiat=50000.0,
+            available_token_amount=10000.0,
+            payment_methods=[{"method_type": "UPI", "account_identifier": "merchant@okhdfcbank", "recipient_name": "Delhi Node"}],
+        )
+
+        assert offer.offer_id.startswith("off_")
+        assert offer.fiat_currency == "INR"
+
+        # 2. Buyer creates order for 8,500 INR (1,000 tokens) -> escrow automatically locked
+        buyer_addr = "0xbuyer_user_mobile_9898"
+        order = gateway.create_p2p_order(
+            offer_id=offer.offer_id,
+            user_address=buyer_addr,
+            fiat_amount=8500.0,
+        )
+
+        assert order.order_id.startswith("p2p_")
+        assert order.status == "ESCROW_LOCKED"
+        assert order.crypto_amount == 1000.0
+        assert order.escrow_tx_hash.startswith("0xescrow_p2p_")
+
+        # 3. Buyer and seller exchange E2E encrypted chat messages
+        msg = gateway.send_encrypted_chat_message(
+            order_id=order.order_id,
+            sender_address=buyer_addr,
+            encrypted_payload_hex="a1b2c3d4e5f67890abcdef",
+            nonce_hex="1234567890abcdef",
+        )
+        assert msg.message_id.startswith("msg_")
+        assert len(order.chat_messages) == 1
+
+        # 4. Buyer marks paid with UPI UTR transaction reference hash
+        gateway.mark_payment_sent(
+            order_id=order.order_id,
+            buyer_address=buyer_addr,
+            payment_receipt_hash="0xupi_utr_reference_proof_9898048483",
+        )
+        assert order.status == "PAID_MARKED"
+
+        # 5. Merchant confirms receipt and releases crypto escrow
+        release_res = gateway.confirm_and_release_escrow(
+            order_id=order.order_id,
+            seller_address=merchant_addr,
+        )
+
+        assert release_res["status"] == "RELEASED"
+        assert release_res["crypto_amount"] == 1000.0
+        assert release_res["release_tx_hash"].startswith("0xp2p_release_")
+
+    def test_mobile_mining_accelerator_thermal_guard_and_pose_proofs(self):
+        """Verifies ARM NEON SIMD vector mining, battery/thermal throttle guards, and PoSE proof generation."""
+        import sys
+        import os
+        sys.path.insert(0, os.path.abspath('android-client'))
+        from mining_accelerator import MobileMiningAccelerator
+
+        accel = MobileMiningAccelerator(
+            node_address="0xmobile_node_strongbox_enclave_9898",
+            efficiency_cores_count=4,
+        )
+
+        # 1. Verify safe idle charging state allows mining
+        accel.update_device_telemetry(
+            battery_level_pct=92.0,
+            is_plugged_in=True,
+            is_screen_off_idle=True,
+            temperature_celsius=32.0,
+        )
+
+        start_res = accel.start_mining_cycle()
+        assert start_res["status"] == "MINING_ACTIVE"
+        assert start_res["arm_neon_vector_simd"] is True
+        assert accel.current_hashrate_khs > 0
+
+        # 2. Compute Proof-of-Stake-and-Energy (PoSE) batch
+        proof = accel.compute_pose_batch(
+            block_height=1_250_000,
+            block_header_hash="0xblock_header_hash_delhi_supercluster_9898",
+            target_difficulty_leading_zeros=2,
+            batch_iterations=10_000,
+        )
+
+        assert proof is not None
+        assert proof.proof_id.startswith("pose_")
+        assert proof.hashes_computed == 10_000
+        assert proof.reward_tokens > 0
+        assert proof.signature.startswith("0xarm_tee_sig_")
+
+        # 3. Thermal Throttling: Device heats up beyond 41.5°C -> should auto pause
+        hot_update = accel.update_device_telemetry(
+            battery_level_pct=90.0,
+            is_plugged_in=True,
+            is_screen_off_idle=True,
+            temperature_celsius=43.5,  # Too hot!
+        )
+        assert hot_update["can_mine_safely"] is False
+        assert accel.is_mining_active is False
+        assert accel.compute_pose_batch(1_250_001, "0xblock_header_hash_next") is None
+
+        # 4. Battery Throttling: Battery drops below 80% or unplugged -> cannot start
+        unplugged = accel.update_device_telemetry(
+            battery_level_pct=75.0,
+            is_plugged_in=False,
+            is_screen_off_idle=True,
+            temperature_celsius=33.0,
+        )
+        assert unplugged["can_mine_safely"] is False
+        halt_res = accel.start_mining_cycle()
+        assert halt_res["status"] == "HALTED"
+
+
+class TestInstitutionalCustodyTippingAndExplorer:
+    """Validates Prompt 145 (Institutional Custody), Prompt 146 (Social Micro-Tipping), Prompt 147 (Explorer Analytics)."""
+
+    def test_institutional_custody_quorum_and_emergency_freeze(self):
+        """Verifies 4-of-7 quorum approvals, daily velocity limits, 48h timelock delays, and emergency enclave freezes."""
+        from server.services.institutional_custody_vault import InstitutionalCustodyVaultEngine
+
+        engine = InstitutionalCustodyVaultEngine()
+        vault_id = "vault_master_institutional_01"
+
+        # 1. Propose withdrawal of 500,000 Token 9898048483 (below high value threshold)
+        req = engine.propose_withdrawal(
+            vault_id=vault_id,
+            proposer_id="sign_1",  # CEO
+            recipient_address="0xecosystem_grant_fund_delhi",
+            token_symbol="TOKEN9898",
+            amount=500_000.0,
+            purpose_memo="Quarterly Developer Grants",
+            proposer_signature="0xdilithium_sig_ceo_shard_1",
+        )
+
+        assert req.request_id.startswith("req_")
+        assert len(req.approvals) == 1
+        assert req.status == "PENDING_APPROVAL"
+
+        # 2. Collect remaining 3 signatures (CFO, Security Lead, Lead SRE) -> 4 total (meets 4-of-7 quorum)
+        engine.sign_and_approve_withdrawal(req.request_id, "sign_2", "0xdilithium_sig_cfo_shard_2")
+        engine.sign_and_approve_withdrawal(req.request_id, "sign_3", "0xdilithium_sig_sec_shard_3")
+        engine.sign_and_approve_withdrawal(req.request_id, "sign_5", "0xdilithium_sig_sre_shard_5")
+
+        assert len(req.approvals) == 4
+
+        # 3. Execute approved withdrawal
+        exec_res = engine.execute_approved_withdrawal(req.request_id, "sign_1")
+        assert exec_res["status"] == "EXECUTED"
+        assert exec_res["amount"] == 500_000.0
+        assert exec_res["execution_tx_hash"].startswith("0xcustody_exec_")
+
+        # 4. Emergency Enclave Freeze verification
+        freeze_res = engine.trigger_emergency_vault_freeze(vault_id, "enclave_guard_node_01", "Anomalous multi-region IP activity")
+        assert freeze_res["status"] == "EMERGENCY_FROZEN"
+        overview = engine.get_vault_overview(vault_id)
+        assert overview["is_emergency_frozen"] is True
+
+    def test_social_micro_tipping_channel_and_badges(self):
+        """Verifies ephemeral gasless tipping channels, instant 1-click tips, and dynamic creator supporter ranks."""
+        from server.services.social_micro_tipping import SocialMicroTippingEngine
+
+        tipping = SocialMicroTippingEngine()
+        user_addr = "0xfan_patron_wallet_9898"
+
+        # 1. Open ephemeral tipping channel with 500 tokens
+        ch = tipping.open_ephemeral_tipping_channel(user_addr, deposit_tokens=500.0)
+        assert ch.channel_id.startswith("tipch_")
+        assert ch.allocated_tokens == 500.0
+
+        # 2. Send 1-click micro-tip to YouTube Creator
+        tip = tipping.send_one_click_micro_tip(
+            channel_id=ch.channel_id,
+            creator_id="cr_yt_quant",
+            amount_tokens=50.0,
+            target_post_or_content_id="vid_quantum_zk_explainer_88",
+            memo_message="Fantastic breakdown!",
+        )
+
+        assert tip.tip_id.startswith("tip_")
+        assert tip.status == "CONFIRMED"
+        assert tip.webhook_dispatched is True
+        assert ch.spent_tokens == 50.0
+
+        # 3. Verify creator leaderboard and supporter badge
+        leaderboard = tipping.get_creator_leaderboard("cr_yt_quant")
+        assert leaderboard["total_tips_received_tokens"] >= 50.0
+        assert len(leaderboard["top_supporters"]) > 0
+
+    def test_explorer_analytics_indexing_and_supply_distribution(self):
+        """Verifies block/tx indexing, supply distribution tiers (Whales, Institutions, Retail), and address querying."""
+        from server.api.explorer_analytics_api import ExplorerAnalyticsSubsystem
+
+        explorer = ExplorerAnalyticsSubsystem()
+
+        # 1. Index a confirmed block
+        txs = [
+            {"tx_hash": "0xtx_exp_1", "sender": "0xalice", "recipient": "0xbob", "amount": 1000.0, "token_symbol": "TOKEN9898"},
+            {"tx_hash": "0xtx_exp_2", "sender": "0xbob", "recipient": "0xcharlie", "amount": 500.0, "token_symbol": "TOKEN9898"},
+        ]
+        block = explorer.record_confirmed_block(
+            block_height=1_450_100,
+            proposer_validator="0xdelhi_supercluster_validator_node",
+            transactions_list=txs,
+            fees_burned=1.25,
+        )
+
+        assert block.block_height == 1_450_100
+        assert block.tx_count == 2
+        assert block.block_hash.startswith("0xblock_")
+
+        # 2. Verify Supply Distribution Tiers
+        supply = explorer.get_supply_distribution_tiers()
+        assert supply["total_genesis_supply"] == 1_000_000_000.0
+        assert supply["total_burned_supply"] > 0
+        assert "tier_breakdown" in supply
+        assert supply["tier_breakdown"]["whales_holding_tokens"] > 0
+        assert supply["tier_breakdown"]["institutional_reserves_tokens"] > 0
+
+        # 3. Query Address Analytics
+        details = explorer.get_address_details("0xmaster_treasury_vault_9898")
+        assert details["account_type"] == "INSTITUTIONAL"
+        assert details["balance_token9898"] > 0
+
+
+class TestStealthAddressesAndYieldOptimizer:
+    """Validates Prompt 148 (ZK Stealth Addresses) and Prompt 149 (Autonomous AI Yield Optimizer)."""
+
+    def test_zk_dual_key_stealth_address_generation_and_fast_scan(self):
+        """Verifies DKSAP ephemeral address generation, view-tag rejection, and recipient scanning."""
+        from server.crypto.stealth_addresses import ZKStealthAddressEngine
+
+        engine = ZKStealthAddressEngine()
+
+        # 1. Recipient generates dual-key pair (Spend + View)
+        recipient_keys = engine.generate_stealth_meta_address(owner_label="Alice Private Node")
+        assert recipient_keys.meta_address.meta_address_encoded.startswith("st:9898:")
+        assert recipient_keys.spend_pubkey.startswith("0x")
+        assert recipient_keys.view_pubkey.startswith("0x")
+
+        # 2. Sender initiates a private shielded transfer
+        announcement, stealth_dest = engine.generate_stealth_transfer(
+            recipient_meta=recipient_keys.meta_address,
+            amount=7500.0,
+            memo="Confidential Staking Reward",
+            token_symbol="TOKEN9898",
+        )
+
+        assert announcement.stealth_address == stealth_dest
+        assert len(announcement.view_tag) == 2
+        assert announcement.pedersen_commitment.startswith("0xcomm_")
+
+        # 3. Recipient performs fast view-tag scanning
+        scanned = engine.scan_for_incoming_shielded_transfers(recipient_keys)
+        assert len(scanned) == 1
+        assert scanned[0].amount == 7500.0
+        assert scanned[0].memo == "Confidential Staking Reward"
+        assert scanned[0].stealth_address == stealth_dest
+        assert scanned[0].derived_one_time_privkey.startswith("0xpriv_")
+
+        # 4. Another unrelated recipient scanning should find 0 transfers
+        bob_keys = engine.generate_stealth_meta_address(owner_label="Bob")
+        bob_scanned = engine.scan_for_incoming_shielded_transfers(bob_keys)
+        assert len(bob_scanned) == 0
+
+    def test_autonomous_ai_yield_optimizer_rebalance_and_circuit_breaker(self):
+        """Verifies GARCH volatility forecasting, dynamic yield rebalancing, and black swan circuit breaker."""
+        from server.ai.yield_optimizer_vault import AutonomousYieldOptimizerVault
+
+        vault = AutonomousYieldOptimizerVault(initial_capital_usd=5_000_000.0)
+
+        # 1. Check GARCH volatility calculation
+        vol = vault.calculate_garch_volatility_forecast([0.01, -0.02, 0.005, 0.015])
+        assert vol > 0.0
+
+        # 2. Execute autonomous rebalance evaluation
+        rebalances = vault.evaluate_and_optimize_allocations()
+        assert isinstance(rebalances, list)
+
+        # 3. Test Auto-Compounding
+        comp_res = vault.auto_compound_harvested_yield(25_000.0)
+        assert comp_res["status"] == "COMPOUNDED"
+        assert comp_res["harvested_usd"] == 25_000.0
+        assert vault.total_vault_capital_usd >= 5_025_000.0
+
+        # 4. Test Emergency Circuit Breaker
+        cb_res = vault.trigger_emergency_circuit_breaker("Simulated Black Swan Liquidity Drain")
+        assert cb_res["status"] == "CIRCUIT_BREAKER_ACTIVE"
+        assert vault.is_circuit_breaker_active is True
+
+        # When active, rebalance should be halted
+        assert vault.evaluate_and_optimize_allocations() == []
+
+        # 5. Restore normal operation
+        restore_res = vault.reset_circuit_breaker()
+        assert restore_res["status"] == "NORMAL_OPERATION_RESTORED"
+        assert vault.is_circuit_breaker_active is False
+
+
+class TestZKMixerAndRecursiveSTARKRollup:
+    """Validates Prompt 150 (ZK Multi-Hop Mixer) and Prompt 151 (Recursive STARK Proof Aggregator)."""
+
+    def test_zk_privacy_mixer_deposit_proof_and_nullifier_shield(self):
+        """Verifies fixed-denomination deposits, Merkle inclusion proof synthesis, double-spend prevention."""
+        from server.crypto.zk_privacy_mixer import ZKPrivacyMixerEngine
+
+        mixer = ZKPrivacyMixerEngine()
+
+        # 1. Deposit 1,000 Token 9898048483
+        note = mixer.deposit_tokens_into_pool("TOKEN9898", 1000.0)
+        assert note.denomination == 1000.0
+        assert note.commitment.startswith("0x")
+        assert note.export_note_string().startswith("zk9898-token9898-1000-")
+
+        # 2. Synthesize zk-SNARK proof for unlinked withdrawal address
+        recipient = "0xfresh_unlinked_privacy_wallet_01"
+        proof = mixer.generate_zk_snark_proof(note, recipient, relayer_address="0xrelayer_mesh", relayer_fee=5.0)
+        assert proof.nullifier_hash.startswith("0xnull_")
+        assert proof.recipient_address == recipient
+        assert proof.fee_amount == 5.0
+
+        # 3. Withdraw with zk-SNARK proof
+        wdraw_res = mixer.withdraw_with_zk_proof(proof, "TOKEN9898", 1000.0)
+        assert wdraw_res["status"] == "WITHDRAWN"
+        assert wdraw_res["net_amount"] == 995.0
+        assert wdraw_res["recipient_address"] == recipient
+
+        # 4. Attempt double-spend with the same nullifier -> Must fail
+        import pytest
+        try:
+            mixer.withdraw_with_zk_proof(proof, "TOKEN9898", 1000.0)
+            assert False, "Double-spend should have thrown ValueError"
+        except ValueError as e:
+            assert "Double-spend detected" in str(e)
+
+    def test_recursive_stark_batch_rollup_and_fri_verification(self):
+        """Verifies off-chain tx submission, recursive FRI folding, state root updates, and <5ms verification."""
+        from server.crypto.recursive_stark_aggregator import RecursiveSTARKRollupAggregator
+
+        aggregator = RecursiveSTARKRollupAggregator()
+
+        # 1. Submit off-chain rollup transactions
+        t1 = aggregator.submit_rollup_transaction("0xrollup_treasury_master", "0xuser_alice", 500.0)
+        t2 = aggregator.submit_rollup_transaction("0xuser_alice", "0xuser_bob", 200.0)
+        assert t1.tx_id.startswith("rtx_")
+        assert t2.tx_id.startswith("rtx_")
+        assert len(aggregator.mempool) >= 2
+
+        # 2. Aggregate and generate recursive zk-STARK validity proof
+        proof = aggregator.aggregate_and_generate_recursive_stark_proof(max_batch_size=10)
+        assert proof.proof_id.startswith("stark_batch_")
+        assert proof.batch_size >= 2
+        assert proof.fri_folding_steps >= 2
+        assert proof.verification_time_ms < 5.0
+        assert proof.post_state_root.startswith("0xstark_root_")
+
+        # 3. Verify STARK proof
+        is_valid = aggregator.verify_stark_proof(proof)
+        assert is_valid is True
+
+        # 4. Check telemetry
+        telemetry = aggregator.get_rollup_telemetry()
+        assert telemetry["total_confirmed_batches"] >= 1
+        assert telemetry["trusted_setup_required"] is False
+
+
+
+
+
+
+
+
 
 
 

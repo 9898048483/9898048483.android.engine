@@ -41,6 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const tabs = [
     { id: 'pipeline', label: 'CI/CD Pipeline', icon: Terminal, badge: pipelineRunning ? 'Building' : null },
+    { id: 'node_heatmap', label: 'Prompt 139: Global Node Heatmap (3D)', icon: Globe, highlight: true },
     { id: 'valuation_2030', label: '2026–2030 $1.00 USD Road (AI Aayush Inst)', icon: Award, highlight: true },
     { id: 'fastapi_backend', label: 'Prompt 14: FastAPI Backend', icon: Server, highlight: true },
     { id: 'local_nlp', label: 'Prompt 13: Local AI NLP Engine', icon: Brain, highlight: true },

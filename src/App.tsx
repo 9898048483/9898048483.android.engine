@@ -19,6 +19,7 @@ import { KivyGuiRenderingLayer } from './components/KivyGuiRenderingLayer';
 import { LocalAiNlpEngine } from './components/LocalAiNlpEngine';
 import { FastApiMicroBackend } from './components/FastApiMicroBackend';
 import { InstitutionalValuationPortal } from './components/InstitutionalValuationPortal';
+import { GlobalNodeHeatmap } from './components/GlobalNodeHeatmap';
 import { PipelineRun, ApkInfo, DevOpsAlert, AuditEvent, RepoSecret, UserSpaceRecord } from './types';
 
 
@@ -273,6 +274,10 @@ export default function App() {
             loading={loading}
             onNavigateToArtifacts={() => setActiveTab('artifacts')}
           />
+        )}
+
+        {activeTab === 'node_heatmap' && (
+          <GlobalNodeHeatmap />
         )}
 
         {activeTab === 'valuation_2030' && (
