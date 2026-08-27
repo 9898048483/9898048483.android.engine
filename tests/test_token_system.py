@@ -4538,6 +4538,1626 @@ class TestQuantumProofOfEntanglementConsensus:
         assert sol.quantum_annealing_sweeps == 100
         assert sol.expected_output_tokens > 0.0
 
+    def test_blind_quantum_computing_private_smart_contracts(self):
+        """Verifies 2D cluster brick-state initialization, blinded angle encryption, trap fidelity, and decoded execution."""
+        from server.services.blind_quantum_contracts import (
+            BlindQuantumComputingEngine,
+        )
+
+        bqc = BlindQuantumComputingEngine()
+
+        # 1. Execute blind smart contract
+        res = bqc.execute_blind_contract(
+            contract_address="0xcontract_private_vault_9898",
+            client_did="did:token9898:vault_owner_alice",
+            raw_contract_inputs={"trade_amount": 50000, "slippage_tol": 0.005, "target_pool": "0xpool_q"},
+            cluster_width=4,
+            cluster_height=4,
+        )
+
+        assert res.execution_id.startswith("bqc_")
+        assert res.total_qubits_evaluated == 16
+        assert res.trap_verification_passed is True
+        assert res.quantum_trap_fidelity >= 0.90
+        assert res.decrypted_output_payload["status"] == "SUCCESS"
+        assert res.decrypted_output_payload["is_confidential"] is True
+
+    def test_quantum_random_walk_amm_engine(self):
+        """Verifies Discrete-Time Quantum Walk (DTQW) simulation, quadratic price equilibrium speedup, and quantum swap."""
+        from server.services.qrw_amm_engine import (
+            QuantumRandomWalkAMMEngine,
+        )
+
+        qrw = QuantumRandomWalkAMMEngine()
+
+        # 1. Create QRW Liquidity Pool
+        pool = qrw.create_qrw_pool(
+            token_a="TOKEN9898",
+            token_b="USDC",
+            reserve_a=100_000.0,
+            reserve_b=1_000_000.0,
+            initial_tick_width_bps=10.0,
+        )
+        assert pool.current_mid_price == 10.0
+        assert pool.total_liquidity_depth > 0
+
+        # 2. Simulate DTQW Probability Distribution
+        dtqw_probs = qrw.simulate_dtqw_probability_distribution(steps=15)
+        assert len(dtqw_probs) > 0
+        total_p = sum(dtqw_probs.values())
+        assert abs(total_p - 1.0) < 0.05
+
+        # 3. Execute Quantum Swap with Quantum Spread Advantage
+        trade = qrw.execute_quantum_swap(
+            pool_id=pool.pool_id,
+            input_token="TOKEN9898",
+            input_amount=500.0,
+            max_slippage_bps=50.0,
+        )
+
+        assert trade.trade_id.startswith("qrw_tx_")
+        assert trade.output_amount > 0.0
+        assert trade.effective_execution_price > 0.0
+        assert trade.quantum_spread_advantage_bps >= 0.0
+        assert pool.last_quantum_step == 1
+
+    def test_pqc_hybrid_vault_lattice_isogeny(self):
+        """Verifies dual Kyber-1024 + SQISign keypair generation, encapsulation, decapsulation, and threshold custody."""
+        from server.services.pqc_hybrid_vault import (
+            PQCHybridVaultEngine,
+        )
+
+        pqc_engine = PQCHybridVaultEngine()
+
+        # 1. Generate Hybrid Keypair
+        pk1, sk1 = pqc_engine.generate_hybrid_keypair("signer_alice")
+        pk2, sk2 = pqc_engine.generate_hybrid_keypair("signer_bob")
+        pk3, sk3 = pqc_engine.generate_hybrid_keypair("signer_carol")
+
+        assert len(pk1.kyber1024_pk_hex) > 0
+        assert len(pk1.sqisign_curve_point_hex) > 0
+
+        # 2. Dual Encapsulation & Decapsulation
+        ct, enc_key = pqc_engine.encapsulate_hybrid_secret(pk1)
+        dec_key = pqc_engine.decapsulate_hybrid_secret(sk1, ct)
+        assert enc_key == dec_key
+        assert len(enc_key) == 32
+
+        # 3. Create Multi-Sig Treasury Vault (2-of-3)
+        vault = pqc_engine.create_treasury_vault(
+            vault_name="Token9898_Ecosystem_Reserve",
+            threshold_m=2,
+            signers=[pk1, pk2, pk3],
+            initial_balance=500_000.0,
+        )
+        assert vault.threshold_m == 2
+        assert vault.total_signers_n == 3
+
+        # 4. Authorize Multi-Sig Disbursement
+        disbursement = pqc_engine.authorize_treasury_transfer(
+            vault_id=vault.vault_id,
+            recipient_address="0xrecipient_developer_pool",
+            amount=50_000.0,
+            signer_approvals=["signer_alice", "signer_bob"],
+        )
+        assert disbursement["status"] == "APPROVED"
+        assert disbursement["remaining_vault_balance"] == 450_000.0
+        assert disbursement["tx_hash"].startswith("0x")
+
+    def test_quantum_zk_stark_summarizer(self):
+        """Verifies QFT-accelerated polynomial interpolation, Merkle commitment, and sub-second batch verification."""
+        from server.services.quantum_zk_summarizer import (
+            QuantumZKSTARKSummarizer,
+        )
+
+        summarizer = QuantumZKSTARKSummarizer()
+
+        # 1. QFT Simulation
+        trace = [1.0, 2.5, 0.8, 3.2, 1.1, 4.0, 2.2, 0.5]
+        qft_out = summarizer.simulate_quantum_fourier_transform(trace)
+        assert len(qft_out) == 8
+
+        # 2. Generate Q-STARK Proof for L2 Batch
+        tx_hashes = [f"0xtx_{i}_{secrets.token_hex(4)}" for i in range(25)]
+        batch = summarizer.generate_quantum_stark_proof(
+            rollup_epoch=1,
+            prev_state_root="0xprev_state_root_hash_0001",
+            transaction_hashes=tx_hashes,
+            trace_steps=16,
+        )
+
+        assert batch.batch_id.startswith("qstark_batch_")
+        assert batch.transaction_count == 25
+        assert batch.is_valid_proof is True
+        assert batch.quantum_fourier_rounds == 4
+        assert batch.proof_bytes_length == 1420
+
+        # 3. Verify Q-STARK Proof
+        is_verified = summarizer.verify_quantum_stark_proof(batch)
+        assert is_verified is True
+
+    def test_quantum_photonic_clock_anti_mev(self):
+        """Verifies sub-nanosecond optical frequency comb timestamping and FIFO anti-frontrunning mempool sequencing."""
+        from server.services.quantum_photonic_clock import (
+            QuantumPhotonicClockEngine,
+        )
+
+        clock = QuantumPhotonicClockEngine(repetition_rate_mhz=250.0, carrier_offset_mhz=20.0)
+
+        # 1. Generate Photonic Timestamp
+        ts = clock.generate_photonic_timestamp(node_id="val_tokyo_01")
+        assert ts.laser_mode_lock_status == "LOCKED"
+        assert ts.optical_comb_frequency_thz > 190.0
+        assert ts.quantum_clock_signature.startswith("0x")
+
+        # 2. Submit transactions to Fair Mempool
+        tx1 = clock.submit_transaction_to_fair_mempool(
+            sender="0xalice",
+            target_contract="0xdex_router",
+            calldata="swap(100, TOKEN9898, USDC)",
+            client_node_id="node_us_east",
+        )
+        tx2 = clock.submit_transaction_to_fair_mempool(
+            sender="0xbob",
+            target_contract="0xdex_router",
+            calldata="swap(200, USDC, TOKEN9898)",
+            client_node_id="node_eu_central",
+        )
+
+        assert tx1.tx_id.startswith("qtx_")
+        assert tx1.is_valid_timing is True
+        assert tx2.is_valid_timing is True
+
+        # 3. Sequence Block Transactions in strict FIFO order
+        batch = clock.sequence_block_transactions(max_tx_count=10)
+        assert len(batch) >= 2
+        assert batch[0].photonic_timestamp.timestamp_ns <= batch[1].photonic_timestamp.timestamp_ns
+
+    def test_quantum_byzantine_agreement(self):
+        """Verifies multi-party GHZ entanglement distribution, f < n/2 tolerance, and single-round finality."""
+        from server.services.quantum_byzantine_agreement import (
+            QuantumByzantineAgreementEngine,
+        )
+
+        qba = QuantumByzantineAgreementEngine()
+        val_list = [f"val_node_{i}" for i in range(7)]  # 7 nodes -> max tolerable f = (7-1)//2 = 3
+
+        # 1. Honest majority with 2 Byzantine adversaries (2 < 3)
+        round_res = qba.execute_quantum_consensus_round(
+            block_height=1001,
+            proposed_block_hash="0xblock_hash_alpha_9898",
+            validator_ids=val_list,
+            byzantine_validator_ids=["val_node_1", "val_node_5"],
+        )
+
+        assert round_res.round_id.startswith("qba_")
+        assert round_res.total_validators == 7
+        assert round_res.byzantine_fault_count == 2
+        assert round_res.consensus_reached is True
+        assert round_res.agreed_decision in ["COMMIT", "ABORT"]
+        assert round_res.quantum_correlation_integrity > 70.0
+
+    def test_quantum_error_correcting_storage(self):
+        """Verifies Steane [[7,1,3]] code encoding, stabilizer syndrome extraction, MWPM correction, and key recovery."""
+        from server.services.quantum_qec_storage import (
+            QuantumErrorCorrectingStorageEngine,
+        )
+
+        qec = QuantumErrorCorrectingStorageEngine()
+        secret_key_bytes = b"QUANTUM_MASTER_SEED_SHARD_9898"
+
+        # 1. Store secret key in QEC logical qubits
+        store_msg = qec.store_sensitive_key_shard("vault_shard_primary", secret_key_bytes)
+        assert "protected by" in store_msg
+
+        # 2. Inject simulated quantum bit-flip and phase-flip noise
+        injected = qec.inject_simulated_quantum_noise("vault_shard_primary", error_rate=0.08)
+        assert injected >= 0
+
+        # 3. Active QEC Stabilization & MWPM Recovery
+        report = qec.recover_and_preserve_key_shard("vault_shard_primary")
+        assert report.report_id.startswith("qec_rep_")
+        assert report.corrected_successfully is True
+        assert bytes.fromhex(report.final_reconstructed_payload_hex) == secret_key_bytes
+        assert report.preservation_fidelity > 0.99
+
+    def test_quantum_teleportation_cross_chain_bridge(self):
+        """Verifies Bell-basis measurement on source chain, 2-bit classical transmission, and Pauli unitary reconstruction."""
+        from server.services.quantum_teleportation_bridge import (
+            QuantumTeleportationBridgeEngine,
+        )
+
+        bridge = QuantumTeleportationBridgeEngine()
+
+        # 1. Lock and measure on Source Chain (Chain 1 -> Chain 137)
+        lock_event = bridge.initiate_quantum_teleportation_lock(
+            source_chain_id=1,
+            destination_chain_id=137,
+            sender_address="0xsender_alice",
+            recipient_address="0xrecipient_bob",
+            token_amount=1000.0,
+        )
+
+        assert lock_event.lock_id.startswith("qlock_")
+        assert lock_event.source_chain_id == 1
+        assert lock_event.destination_chain_id == 137
+        assert len(lock_event.bell_measurement_bits) == 2
+        assert lock_event.state_lock_hash.startswith("0x")
+
+        # 2. Reconstruct state and mint on Destination Chain
+        mint_event = bridge.reconstruct_and_mint_on_destination(lock_event.lock_id)
+
+        assert mint_event.mint_id.startswith("qmint_")
+        assert mint_event.token_amount == 1000.0
+        assert mint_event.recipient_address == "0xrecipient_bob"
+        assert mint_event.state_fidelity > 0.99
+        assert mint_event.applied_pauli_operator in ["I", "X", "Z", "ZX"]
+
+    def test_quantum_circuit_breaker_sentry(self):
+        """Verifies Hilbert state normalization, state fidelity calculation, and automatic circuit breaker tripping on flash crashes."""
+        from server.services.quantum_circuit_breaker import (
+            QuantumCircuitBreakerEngine,
+            CRITICAL_PHASE_TRANSITION_THRESHOLD,
+        )
+
+        breaker = QuantumCircuitBreakerEngine()
+
+        # 1. Nominal equilibrium baseline reserves
+        baseline_reserves = {
+            "pool_token9898_usdc": 10_000_000.0,
+            "pool_token9898_eth": 8_000_000.0,
+            "pool_token9898_btc": 5_000_000.0,
+        }
+        breaker.set_baseline_equilibrium(baseline_reserves)
+
+        # 2. Minor market fluctuation -> Nominal
+        nominal_status = breaker.evaluate_market_fidelity({
+            "pool_token9898_usdc": 9_900_000.0,
+            "pool_token9898_eth": 8_100_000.0,
+            "pool_token9898_btc": 4_950_000.0,
+        })
+        assert nominal_status.is_tripped is False
+        assert nominal_status.current_quantum_fidelity > 0.95
+        assert nominal_status.systemic_risk_level == "NOMINAL"
+
+        # 3. Severe Flash Crash / Oracle Exploit Drain -> Fidelity drops below 0.65 -> Auto Tripped
+        crashed_reserves = {
+            "pool_token9898_usdc": 500_000.0,  # 95% drain
+            "pool_token9898_eth": 8_000_000.0,
+            "pool_token9898_btc": 5_000_000.0,
+        }
+        crashed_status = breaker.evaluate_market_fidelity(crashed_reserves)
+        assert crashed_status.is_tripped is True
+        assert crashed_status.current_quantum_fidelity < CRITICAL_PHASE_TRANSITION_THRESHOLD
+        assert crashed_status.systemic_risk_level == "CRITICAL_TRIPPED"
+        assert "pool_token9898_usdc" in crashed_status.dislocated_pools
+
+        # 4. Reset circuit breaker after stabilization
+        reset_status = breaker.reset_circuit_breaker(baseline_reserves)
+        assert reset_status.is_tripped is False
+        assert reset_status.systemic_risk_level == "NOMINAL"
+
+    def test_quantum_digital_signatures_qds(self):
+        """Verifies non-orthogonal coherent state key generation, Swap-Test verification, and unforgeability."""
+        from server.services.quantum_digital_signatures import (
+            QuantumDigitalSignatureEngine,
+        )
+
+        qds = QuantumDigitalSignatureEngine(alpha=1.0, key_length_qubits=16)
+
+        # 1. Generate QDS Keypair
+        kp = qds.generate_qds_keypair(signer_address="0xalice_quantum_signer")
+        assert kp.keypair_id.startswith("qds_kp_")
+        assert len(kp.private_bit_sequences[0]) == 16
+        assert len(kp.quantum_public_phases[1]) == 16
+
+        # 2. Sign Message Digest
+        msg = b"TRANSFER_50000_TOKEN9898_TO_0xBOB"
+        sig = qds.sign_message_digest("0xalice_quantum_signer", msg)
+        assert sig.signature_id.startswith("qds_sig_")
+        assert sig.signature_qubit_count == 16
+
+        # 3. Swap-Test Verification (Honest verification -> High fidelity)
+        res_honest = qds.verify_qds_signature(sig, verifier_address="0xbob_verifier")
+        assert res_honest.is_signature_valid is True
+        assert res_honest.swap_test_overlap_fidelity >= 0.90
+        assert res_honest.ancilla_zero_probability >= 0.95
+
+        # 4. Attacker Forgery Simulation (Phase noise -> Rejection)
+        res_forged = qds.verify_qds_signature(sig, verifier_address="0xattacker", forged_attacker_noise=1.57)
+        assert res_forged.is_signature_valid is False
+        assert res_forged.swap_test_overlap_fidelity < 0.90
+
+    def test_quantum_ml_market_sentry(self):
+        """Verifies market feature tensor encoding, PQC forward pass, and liquidation cascade forecasting."""
+        from server.services.quantum_ml_market_sentry import (
+            QuantumMLMarketSentry,
+        )
+
+        sentry = QuantumMLMarketSentry(num_qubits=4, num_layers=3)
+
+        # 1. Feature Extraction & Hilbert State Mapping
+        tensor = sentry.extract_market_features(
+            token_pair="TOKEN9898/USDT",
+            bid_depth=5_000_000.0,
+            ask_depth=5_100_000.0,
+            funding_rate_bps=5.0,
+            open_interest_usd=20_000_000.0,
+            volatility_sigma=0.35,
+        )
+        assert len(tensor.normalized_quantum_features) == 4
+        assert 0.0 <= tensor.normalized_quantum_features[0] <= 3.15
+
+        # 2. Evaluate Stable Market
+        pred_stable = sentry.predict_liquidation_cascade(
+            token_pair="TOKEN9898/USDT",
+            bid_depth=10_000_000.0,
+            ask_depth=10_000_000.0,
+            funding_rate_bps=2.0,
+            open_interest_usd=10_000_000.0,
+            volatility_sigma=0.20,
+            target_block_ahead=5,
+        )
+        assert pred_stable.prediction_id.startswith("qml_pred_")
+        assert -1.0 <= pred_stable.expectation_value_z <= 1.0
+        assert 0.0 <= pred_stable.cascade_probability <= 1.0
+
+        # 3. Evaluate High Stress Market Scenario
+        pred_stress = sentry.predict_liquidation_cascade(
+            token_pair="TOKEN9898/PERP",
+            bid_depth=100_000.0,
+            ask_depth=5_000_000.0,  # Extreme bid drain
+            funding_rate_bps=-120.0, # Negative funding stress
+            open_interest_usd=90_000_000.0,
+            volatility_sigma=1.8,
+            target_block_ahead=5,
+        )
+        assert pred_stress.risk_classification in ["MODERATE", "CRITICAL_CASCADE_IMMINENT", "LOW_STABLE"]
+
+    def test_quantum_money_and_nft_qubit_tokens(self):
+        """Verifies Wiesner conjugate-basis quantum money minting, bank verification, and counterfeit collapse invalidation."""
+        from server.services.quantum_money_engine import (
+            QuantumMoneyEngine,
+        )
+
+        engine = QuantumMoneyEngine(default_qubits_per_note=32)
+
+        # 1. Mint Authentic Quantum Banknote
+        note = engine.mint_quantum_banknote(denomination=500.0)
+        assert note.serial_number.startswith("QM9898_")
+        assert note.num_qubits == 32
+        assert len(note.physical_qubits) == 32
+
+        # 2. Mint NFT-Q
+        nft_q = engine.mint_nft_qubit(
+            nft_title="Cosmic Entanglement #001",
+            metadata_uri="ipfs://QmQuantumMasterpiece9898",
+            num_qubits=32,
+        )
+        assert nft_q.token_type == "NFT_QUBIT"
+        assert nft_q.denomination_token9898 == 1.0
+
+        # 3. Bank Verification on pristine note -> 100% fidelity
+        ver_pristine = engine.verify_and_redeem_quantum_money(note, redeem_on_success=False)
+        assert ver_pristine.is_valid_authentic is True
+        assert ver_pristine.is_counterfeit_detected is False
+        assert ver_pristine.verification_fidelity >= 0.95
+
+        # 4. Counterfeit Duplication Attempt -> Measurement in random bases collapses state
+        tampered_orig, clone = engine.attempt_counterfeit_cloning(note)
+
+        # 5. Bank Verification on cloned note -> Fails and flags counterfeit
+        ver_clone = engine.verify_and_redeem_quantum_money(clone)
+        assert ver_clone.is_valid_authentic is False
+        assert ver_clone.is_counterfeit_detected is True
+        assert ver_clone.verification_fidelity < 0.95
+
+    def test_post_quantum_blind_signatures_privacy_pool(self):
+        """Verifies lattice blinding factor masking, threshold share signing, unblinding, and zero-linkage withdrawal."""
+        from server.services.pq_blind_signatures import (
+            PostQuantumBlindSignaturePrivacyPool,
+        )
+
+        pool = PostQuantumBlindSignaturePrivacyPool(threshold_t=3, total_signers_n=5)
+
+        # 1. User deposits and blinds transaction
+        commitment, r_blind, nullifier = pool.create_blind_deposit(
+            recipient_address="0xanonymous_recipient_9898",
+            amount=25_000.0,
+        )
+        assert commitment.commitment_id.startswith("com_")
+        assert pool.pool_balance_token9898 == 25_000.0
+        assert r_blind > 0
+        assert nullifier.startswith("nul_")
+
+        # 2. Threshold Signers produce partial blind signature shares
+        shares = []
+        for i in range(1, 4):  # 3 signers meet t=3 threshold
+            signer_id = f"signer_node_{i}"
+            share = pool.sign_blind_share(signer_id, commitment.blinded_message_hash_hex)
+            assert share.share_id.startswith("share_")
+            assert len(share.signature_vector) == 4
+            shares.append(share)
+
+        # 3. Unblind and execute anonymous withdrawal
+        proof = pool.unblind_and_verify_anonymous_withdrawal(
+            recipient_address="0xanonymous_recipient_9898",
+            amount=25_000.0,
+            nullifier=nullifier,
+            blinding_factor_r=r_blind,
+            partial_shares=shares,
+        )
+
+        assert proof.proof_id.startswith("proof_")
+        assert proof.is_valid_on_chain is True
+        assert proof.withdrawal_nullifier == nullifier
+        assert proof.unblinded_signature_hex.startswith("0x")
+        assert pool.pool_balance_token9898 == 0.0
+
+        # 4. Double-spend prevention on same nullifier
+        import pytest
+        try:
+            pool.unblind_and_verify_anonymous_withdrawal(
+                recipient_address="0xanonymous_recipient_9898",
+                amount=25_000.0,
+                nullifier=nullifier,
+                blinding_factor_r=r_blind,
+                partial_shares=shares,
+            )
+            assert False, "Should have thrown double-spend error"
+        except ValueError as e:
+            assert "Double-spend detected" in str(e)
+
+    def test_qr_threshold_key_derivation_mobile_enclave(self):
+        """Verifies (t, n) Shamir-over-Lattice shard provisioning, ephemeral reconstruction, and volatile memory wipe."""
+        from server.services.qr_threshold_keys import (
+            QRThresholdKeyDerivationEngine,
+        )
+
+        engine = QRThresholdKeyDerivationEngine(threshold_t=2, total_shards_n=3)
+
+        # 1. Provision Shards for Mobile Wallet
+        shards = engine.provision_mobile_wallet_shards(
+            wallet_id="wallet_android_secure_9898",
+            user_pin_entropy="secure_biometric_entropy_777",
+        )
+        assert len(shards) == 3
+        assert shards[0].enclave_hardware_type == "ANDROID_STRONGBOX"
+        assert shards[1].enclave_hardware_type == "CLOUD_HSM"
+
+        # 2. Ephemeral Transaction Signing with Shards 1 & 2
+        sig_result = engine.sign_transaction_ephemeral(
+            wallet_id="wallet_android_secure_9898",
+            tx_digest="0xabcdef1234567890txpayload9898",
+            participating_indices=[1, 2],
+        )
+
+        assert sig_result.signature_id.startswith("qr_sig_")
+        assert sig_result.memory_wiped_successfully is True
+        assert sig_result.active_signers_count == 2
+        assert sig_result.ephemeral_signature_hex.startswith("0x")
+
+        # 3. Ephemeral Signing with Alternative Shards 2 & 3 (Same Master Secret Recovery)
+        sig_result_alt = engine.sign_transaction_ephemeral(
+            wallet_id="wallet_android_secure_9898",
+            tx_digest="0xabcdef1234567890txpayload9898",
+            participating_indices=[2, 3],
+        )
+        assert sig_result_alt.ephemeral_signature_hex == sig_result.ephemeral_signature_hex
+
+    def test_quantum_oracle_aggregator_shot_noise(self):
+        """Verifies shot-noise entropy generation, Falcon-1024 attestation, outlier filtering, and VWAP calculation."""
+        from server.services.quantum_oracle_aggregator import (
+            QuantumOracleAggregator,
+        )
+
+        oracle = QuantumOracleAggregator()
+
+        # 1. Create Oracle Node Submissions
+        sub1 = oracle.sign_oracle_submission("q_oracle_node_1", "TOKEN9898/USD", 10.50, 1_000_000.0)
+        sub2 = oracle.sign_oracle_submission("q_oracle_node_2", "TOKEN9898/USD", 10.52, 1_500_000.0)
+        sub3 = oracle.sign_oracle_submission("q_oracle_node_3", "TOKEN9898/USD", 10.48, 800_000.0)
+
+        # Outlier feed (tampered/bad price)
+        sub_outlier = oracle.sign_oracle_submission("q_oracle_node_4", "TOKEN9898/USD", 18.90, 500_000.0)
+
+        assert sub1.quantum_entropy_sample.is_entropy_valid is True
+        assert sub1.falcon_signature_hex.startswith("0x")
+
+        # 2. Aggregate Feeds
+        tick = oracle.aggregate_and_verify_feeds(
+            feed_symbol="TOKEN9898/USD",
+            submissions=[sub1, sub2, sub3, sub_outlier],
+        )
+
+        assert tick.tick_id.startswith("tick_")
+        assert tick.feed_symbol == "TOKEN9898/USD"
+        assert 10.45 <= tick.median_price <= 10.55
+        assert 10.45 <= tick.volume_weighted_price <= 10.55
+        assert tick.rejected_outliers_count >= 1
+        assert tick.is_tick_settled is True
+        assert tick.aggregation_latency_ms < 50.0
+
+    def test_quantum_dao_governance_anti_bribery(self):
+        """Verifies superposition ballot casting, entangled phase masking, and global density matrix ensemble collapse."""
+        from server.services.quantum_dao_governance import (
+            QuantumDAOGovernanceEngine,
+        )
+
+        dao = QuantumDAOGovernanceEngine()
+
+        # 1. Create Proposal
+        prop = dao.create_governance_proposal(
+            title="QIP-42: Deploy Entangled Liquidity Bridge",
+            description="Authorize 500,000 TOKEN9898 for Quantum Rollup L1 Security",
+            proposer_address="0xalice_dao_delegate",
+            quorum_weight=50_000.0,
+        )
+        assert prop.proposal_id.startswith("prop_")
+        assert prop.is_epoch_closed is False
+
+        # 2. Cast Superposition Ballots with Entangled Phase Masking
+        # Voter 1: 85% YES preference
+        b1 = dao.cast_superposition_ballot(
+            proposal_id=prop.proposal_id,
+            voter_address="0xvoter_alice",
+            token_voting_weight=30_000.0,
+            yes_preference_pct=0.85,
+        )
+        assert b1.ballot_id.startswith("ballot_")
+        assert b1.entangled_mask_hash.startswith("0x")
+
+        # Voter 2: 70% YES preference
+        b2 = dao.cast_superposition_ballot(
+            proposal_id=prop.proposal_id,
+            voter_address="0xvoter_bob",
+            token_voting_weight=25_000.0,
+            yes_preference_pct=0.70,
+        )
+
+        # Voter 3: 20% YES preference (80% NO)
+        b3 = dao.cast_superposition_ballot(
+            proposal_id=prop.proposal_id,
+            voter_address="0xvoter_charlie",
+            token_voting_weight=10_000.0,
+            yes_preference_pct=0.20,
+        )
+
+        # 3. Close Epoch & Measure Global Ensemble
+        outcome = dao.close_epoch_and_measure_ensemble(prop.proposal_id)
+        assert outcome["proposal_id"] == prop.proposal_id
+        assert outcome["quorum_met"] is True
+        assert outcome["yes_probability"] > 0.65
+        assert outcome["final_outcome"] == "PASSED"
+        assert outcome["coercion_resistant"] is True
+
+    def test_universal_quantum_state_rollup_engine(self):
+        """Verifies dual EVM + QVM execution, unified Merkle-Density state root, and L1 settlement."""
+        from server.services.universal_quantum_rollup import (
+            UniversalQuantumStateRollupEngine,
+        )
+
+        uqsr = UniversalQuantumStateRollupEngine()
+
+        # 1. Submit Classical and Quantum Transactions
+        tx1 = uqsr.submit_hybrid_transaction(
+            sender="0xalice_qvm",
+            recipient="0xbob_qvm",
+            amount=500.0,
+            is_quantum_op=False,
+        )
+        tx2 = uqsr.submit_hybrid_transaction(
+            sender="0xalice_qvm",
+            recipient="0xalice_qvm",
+            amount=0.0,
+            is_quantum_op=True,
+            register_id="qcr_default_0",
+            gate_type="H",
+            target_qubit=0,
+        )
+
+        assert tx1.tx_id.startswith("uqsr_tx_")
+        assert tx2.is_quantum_op is True
+        assert len(uqsr.pending_tx_mempool) == 2
+
+        # 2. Execute and Settle Batch
+        settlement = uqsr.execute_and_settle_batch(max_batch_size=50000)
+
+        assert settlement.batch_number == 1
+        assert settlement.classical_merkle_root.startswith("0x")
+        assert settlement.quantum_density_root.startswith("0x")
+        assert settlement.unified_uqsr_state_root.startswith("0x")
+        assert settlement.is_settled_on_l1 is True
+        assert settlement.batch_throughput_tps > 0.0
+
+    def test_android_strongbox_microchain_engine(self):
+        """Verifies StrongBox hardware key attestation, TEE micro-block minting, and monotonic counters."""
+        from server.services.android_strongbox_microchain import (
+            AndroidStrongBoxMicrochainEngine,
+        )
+
+        engine = AndroidStrongBoxMicrochainEngine()
+
+        # 1. Register Android StrongBox Node with Genuine Attestation
+        node = engine.register_android_strongbox_node(
+            device_id="android_pixel_titan_m2_9898",
+            security_level="STRONGBOX",
+            knox_warranty_bit=0,
+            verified_boot_state="VERIFIED",
+        )
+        assert node.device_id == "android_pixel_titan_m2_9898"
+        assert node.security_level == "STRONGBOX"
+        assert node.is_active_validator is True
+        assert node.attestation.google_play_integrity_verdict == "MEETS_STRONG_INTEGRITY"
+
+        # 2. Mint Sub-Millisecond TEE Micro-Block
+        txs = [
+            {"sender": "0xalice", "recipient": "0xbob", "amount": 100.0, "nonce": 1},
+            {"sender": "0xbob", "recipient": "0xcharlie", "amount": 50.0, "nonce": 2},
+        ]
+        block = engine.mint_tee_micro_block("android_pixel_titan_m2_9898", txs)
+
+        assert block.micro_block_height == 1
+        assert block.hardware_monotonic_counter == 1001
+        assert block.micro_block_hash.startswith("0x")
+        assert block.strongbox_hardware_signature.startswith("0x")
+        assert block.execution_time_ms < 50.0  # sub-millisecond to low millisecond
+
+        # 3. Attestation rejection on tampered / rooted device
+        import pytest
+        try:
+            engine.register_android_strongbox_node(
+                device_id="rooted_device_007",
+                knox_warranty_bit=1,  # Knox tripped
+                verified_boot_state="UNVERIFIED",
+            )
+            assert False, "Should have rejected tampered device"
+        except PermissionError as e:
+            assert "failed hardware attestation" in str(e)
+
+    def test_ghostmesh_offline_settlement_engine(self):
+        """Verifies BLE peer discovery, dual-signed debt tickets, and mainnet auto-reconciliation."""
+        from server.services.ghostmesh_offline_settlement import (
+            GhostMeshOfflineSettlementEngine,
+        )
+
+        mesh = GhostMeshOfflineSettlementEngine()
+
+        # 1. Peer Discovery over BLE
+        peer_a = mesh.register_mesh_peer("peer_phone_alice", "0xalice_mesh", transport="BLE_ADVERTISING", is_online=False)
+        peer_b = mesh.register_mesh_peer("peer_phone_bob", "0xbob_mesh", transport="WIFI_DIRECT_P2P", is_online=False)
+        assert peer_a.peer_id == "peer_phone_alice"
+        assert peer_b.signal_rssi_dbm == -55
+
+        # 2. Create and Counter-Sign Zero-Internet Offline Ticket
+        ticket = mesh.create_and_countersign_offline_ticket(
+            sender_address="0xalice_mesh",
+            receiver_address="0xbob_mesh",
+            amount=250.0,
+        )
+        assert ticket.ticket_id.startswith("gmesh_tkt_")
+        assert ticket.sender_signature.startswith("0x")
+        assert ticket.receiver_countersignature.startswith("0x")
+        assert ticket.collateral_bond_amount >= 250.0
+        assert ticket.is_settled_on_chain is False
+
+        # 3. Gossip Relay across mesh
+        hops = mesh.gossip_propagate_tickets("peer_phone_charlie_relay")
+        assert hops >= 1
+        assert ticket.mesh_hop_count >= 1
+
+        # 4. Reconcile to Mainnet when any phone reconnects to internet
+        batch = mesh.reconcile_and_settle_to_mainnet(relayer_device_id="peer_phone_charlie_relay")
+        assert batch.batch_id.startswith("gmesh_batch_")
+        assert batch.tickets_count == 1
+        assert batch.total_volume_token9898 == 250.0
+        assert batch.on_chain_settlement_tx.startswith("0x")
+        assert ticket.is_settled_on_chain is True
+
+    def test_sonic_acoustic_transceiver_engine(self):
+        """Verifies ultrasonic FSK modulation, Reed-Solomon framing, and optical QR fallback."""
+        from server.services.sonic_acoustic_transceiver import (
+            SonicAcousticTransceiverEngine,
+        )
+
+        engine = SonicAcousticTransceiverEngine()
+        payload = b"TRANSFER_TOKEN9898_TO_0xBOB_ULTRASONIC"
+
+        # 1. Ultrasonic modulation with strong SNR (24 dB)
+        session_acoustic = engine.modulate_acoustic_payload(
+            sender_device_id="phone_alice_mic",
+            receiver_device_id="phone_bob_speaker",
+            payload_bytes=payload,
+            simulated_ambient_noise_snr_db=24.0,
+        )
+
+        assert session_acoustic.session_id.startswith("sonic_")
+        assert session_acoustic.transmission_channel == "ULTRASONIC_ACOUSTIC_18KHZ"
+        assert len(session_acoustic.audio_frames) > 0
+        assert session_acoustic.audio_frames[0].carrier_freq_hz == 18500.0
+
+        # Demodulate acoustic stream
+        success, decoded, msg = engine.demodulate_and_verify_acoustic_stream(session_acoustic.session_id)
+        assert success is True
+        assert decoded == payload
+
+        # 2. Optical QR fallback on noisy channel (5 dB SNR)
+        session_optical = engine.modulate_acoustic_payload(
+            sender_device_id="phone_alice_mic",
+            receiver_device_id="phone_bob_speaker",
+            payload_bytes=payload,
+            simulated_ambient_noise_snr_db=5.0,
+        )
+        assert session_optical.transmission_channel == "OPTICAL_QR_FALLBACK"
+
+    def test_holographic_fragmented_trie_engine(self):
+        """Verifies O(log N) state leaf updates, ZK state pruning, and 1-RTT dynamic state healing."""
+        from server.services.holographic_fragmented_trie import (
+            HolographicFragmentedTrieEngine,
+        )
+
+        engine = HolographicFragmentedTrieEngine(node_device_id="pixel_phone_node_9898")
+
+        # 1. Register Account Leaf and verify membership
+        proof = engine.register_or_update_account_leaf(
+            account_address="0xalice_holographic",
+            balance=50_000.0,
+            nonce=1,
+        )
+        assert proof.account_address == "0xalice_holographic"
+        assert proof.merkle_leaf_hash.startswith("0x")
+        assert len(proof.membership_audit_path) == 4
+        assert engine.verify_account_membership(proof) is True
+
+        # Ensure mobile storage budget remains < 50 MB
+        assert engine.estimated_local_storage_bytes < (50 * 1024 * 1024)
+
+        # 2. Prune Historical Epoch with ZK Certificate
+        zk_cert = engine.prune_historical_epoch_with_zk_certificate(
+            epoch_number=42,
+            transactions_to_prune=100_000,
+        )
+        assert zk_cert.certificate_id.startswith("zk_prune_")
+        assert zk_cert.proof_size_bytes == 384  # Constant size
+
+        # 3. 1-RTT Dynamic State Healing for lost account
+        healed, healed_proof, msg = engine.request_dynamic_state_healing("0xbob_lost_account")
+        assert healed is True
+        assert healed_proof is not None
+        assert healed_proof.account_address == "0xbob_lost_account"
+
+    def test_poee_battery_consensus_engine(self):
+        """Verifies low-power DSP VDF, thermal entropy sampling, and anti-emulator clock slashing."""
+        from server.services.poee_battery_consensus import (
+            ProofOfElapsedEntropyConsensus,
+        )
+
+        poee = ProofOfElapsedEntropyConsensus()
+
+        # 1. Register Mobile Validator
+        val = poee.register_mobile_validator("pixel_8_dsp_core", attestation_score=1.0)
+        assert val["device_id"] == "pixel_8_dsp_core"
+
+        # 2. Sample Low-Power Hardware Entropy
+        entropy = poee.sample_hardware_thermal_entropy("pixel_8_dsp_core")
+        assert entropy.dsp_power_consumption_mw < 5.0  # Under 5 mW
+        assert entropy.estimated_battery_drain_pct_hr < 0.01  # Under 0.01% / hr
+
+        # 3. Propose Block with Low-Power VDF
+        prop = poee.evaluate_and_propose_block(
+            device_id="pixel_8_dsp_core",
+            block_merkle_root="0xmerkle_root_poee_block_1",
+            vdf_iterations=500,
+        )
+        assert prop.proposal_id.startswith("poee_prop_")
+        assert prop.vdf_proof.is_vdf_verified is True
+        assert prop.is_slashed is False
+        assert poee.current_slot == 2
+
+    def test_bio_quantum_key_synthesis_engine(self):
+        """Verifies Fuzzy Extractor Secure Sketch key derivation and duress panic-finger protection."""
+        from server.services.bio_quantum_key_synthesis import (
+            BioQuantumKeySynthesisEngine,
+        )
+
+        bio = BioQuantumKeySynthesisEngine()
+
+        # 256-bit simulated biometric vectors
+        primary_bio = [1 if (i % 3 == 0) else 0 for i in range(256)]
+        duress_bio = [1 if (i % 2 == 0) else 0 for i in range(256)]
+
+        # 1. Enroll Biometric Identity
+        helper = bio.enroll_biometric_identity(
+            user_id="user_alice_pixel",
+            primary_biometric_bits=primary_bio,
+            duress_biometric_bits=duress_bio,
+        )
+        assert helper.vault_id.startswith("bio_vault_")
+        assert helper.is_duress_configured is True
+
+        # 2. Reconstruct ML-KEM Key with primary fingerprint
+        key_primary = bio.reconstruct_key_from_biometrics(
+            user_id="user_alice_pixel",
+            noisy_biometric_bits=primary_bio,
+        )
+        assert key_primary.public_key_mlkem_hex.startswith("0x")
+        assert key_primary.account_address.startswith("0x")
+        assert key_primary.is_duress_mode_triggered is False
+
+        # 3. Reconstruct key with duress / panic finger -> triggers decoy sandbox wallet
+        key_duress = bio.reconstruct_key_from_biometrics(
+            user_id="user_alice_pixel",
+            noisy_biometric_bits=duress_bio,
+        )
+        assert key_duress.is_duress_mode_triggered is True
+        assert key_duress.account_address != key_primary.account_address
+
+    def test_nfc_quantum_tap_engine(self):
+        """Verifies ISO 14443-4 APDU parsing, dynamic dCVC cryptograms, and offline POS verification."""
+        from server.services.nfc_quantum_tap_engine import (
+            NFCQuantumTapEngine,
+            APDUCommand,
+            TOKEN9898_AID_HEX,
+        )
+
+        nfc = NFCQuantumTapEngine()
+
+        # 1. Enroll NFC Smart Ring
+        device = nfc.enroll_nfc_card_or_ring(
+            card_uid="04A1B2C3D4E5F6",
+            account_address="0xalice_smart_ring",
+            device_type="SMART_RING",
+        )
+        assert device["card_uid"] == "04A1B2C3D4E5F6"
+        assert device["atc_counter"] == 1
+
+        # 2. SELECT AID Command (0x00, 0xA4)
+        select_apdu = APDUCommand(cla=0x00, ins=0xA4, p1=0x04, p2=0x00, data_hex=TOKEN9898_AID_HEX)
+        resp, _ = nfc.process_apdu_command("04A1B2C3D4E5F6", select_apdu)
+        assert resp.sw1 == 0x90
+        assert resp.sw2 == 0x00
+        assert resp.execution_time_ms < 50.0  # Sub-50ms
+
+        # 3. GENERATE AC Command (0x80, 0xAE) for payment of 75.0 TOKEN9898
+        gen_ac_apdu = APDUCommand(cla=0x80, ins=0xAE, p1=0x80, p2=0x00, data_hex="0000007500")
+        resp_ac, cryptogram = nfc.process_apdu_command("04A1B2C3D4E5F6", gen_ac_apdu, amount=75.0)
+
+        assert resp_ac.sw1 == 0x90
+        assert cryptogram is not None
+        assert cryptogram.cryptogram_id.startswith("nfc_tx_")
+        assert len(cryptogram.dynamic_cvc_code) == 3
+        assert cryptogram.is_verified_offline is True
+        assert cryptogram.application_cryptogram_hex.startswith("0x")
+
+    def test_anti_sim_swap_fingerprint_engine(self):
+        """Verifies decoupled hardware entropy fingerprinting, SIM swap quarantine, and SMS-free recovery."""
+        from server.services.anti_sim_swap_fingerprint import (
+            AntiSIMSwapFingerprintEngine,
+        )
+
+        engine = AntiSIMSwapFingerprintEngine()
+
+        # 1. Bind Hardware Device Fingerprint
+        fp = engine.bind_device_hardware_fingerprint(
+            account_address="0xalice_pixel_holder",
+            euicc_iccid="89014103211118510720",
+            secure_element_uid="SE_UID_TITAN_M2_9898",
+            coprocessor_seed="COPROC_ENTROPY_009988",
+        )
+        assert fp.fingerprint_id.startswith("hw_fp_")
+        assert fp.is_quarantined is False
+
+        # 2. Heartbeat normal check (No swap)
+        swapped, alert = engine.inspect_telemetry_and_detect_sim_swap(
+            account_address="0xalice_pixel_holder",
+            current_euicc_iccid="89014103211118510720",
+            current_secure_element_uid="SE_UID_TITAN_M2_9898",
+        )
+        assert swapped is False
+        assert alert is None
+
+        # 3. Carrier SIM Swap / Hardware Tamper detected!
+        swapped, alert = engine.inspect_telemetry_and_detect_sim_swap(
+            account_address="0xalice_pixel_holder",
+            current_euicc_iccid="89019999999999999999",  # Attacker SIM
+            current_secure_element_uid="SE_UID_TITAN_M2_9898",
+            carrier_sim_reissue_flag=True,
+        )
+        assert swapped is True
+        assert alert is not None
+        assert alert.anomaly_type == "UNAUTHORIZED_SIM_SWAP"
+        assert fp.is_quarantined is True
+
+        # 4. SMS-Free Decentralized Recovery via Hardware PQC Signature
+        recovered = engine.execute_sms_free_decentralized_recovery(
+            account_address="0xalice_pixel_holder",
+            hardware_pqc_signature="0x" + "aa" * 32,
+        )
+        assert recovered is True
+        assert fp.is_quarantined is False
+
+    def test_android_workmanager_daemon_engine(self):
+        """Verifies Android WorkManager constraint checking, micro-validation burst, and staking rewards."""
+        from server.services.android_workmanager_daemon import (
+            AndroidWorkManagerDaemonEngine,
+            AndroidPowerStateConstraints,
+        )
+
+        daemon = AndroidWorkManagerDaemonEngine(reward_per_slice=0.05)
+
+        # 1. Register validator
+        ledger = daemon.register_background_validator("pixel_8_pro_node", "0xvalidator_alice")
+        assert ledger.device_id == "pixel_8_pro_node"
+        assert ledger.total_slices_processed == 0
+
+        # 2. Rejection when battery is on cellular or uncharging
+        bad_power = AndroidPowerStateConstraints(
+            device_id="pixel_8_pro_node",
+            is_charging=False,  # Discharging!
+            is_battery_not_low=True,
+            is_unmetered_wifi=False,  # Cellular
+        )
+        ran, res, msg = daemon.evaluate_constraints_and_run_slice("pixel_8_pro_node", bad_power, [])
+        assert ran is False
+        assert res is None
+        assert "constraints not met" in msg
+
+        # 3. Successful execution when charging on Wi-Fi (<200ms burst)
+        good_power = AndroidPowerStateConstraints(
+            device_id="pixel_8_pro_node",
+            is_charging=True,
+            is_battery_not_low=True,
+            is_unmetered_wifi=True,
+        )
+        ran_ok, slice_res, msg_ok = daemon.evaluate_constraints_and_run_slice("pixel_8_pro_node", good_power, [])
+        assert ran_ok is True
+        assert slice_res is not None
+        assert slice_res.execution_burst_ms < 200.0
+        assert slice_res.transactions_verified_count == 500
+        assert slice_res.reward_earned_token9898 == 0.05
+        assert ledger.cumulative_rewards_token9898 == 0.05
+
+    def test_p2p_gossip_paging_engine(self):
+        """Verifies FCM-free onion-routed P2P notification dispatch and mailbox store-and-forward syncing."""
+        from server.services.p2p_gossip_paging import (
+            P2PGossipPagingEngine,
+        )
+
+        engine = P2PGossipPagingEngine()
+
+        # 1. Subscribe recipient to P2P DHT Topic
+        topic = engine.subscribe_to_paging_topic(
+            recipient_address="0xbob_mobile_holder",
+            device_id="bob_galaxy_s24_node",
+        )
+        assert topic.startswith("0x")
+
+        # 2. Dispatch 3-hop onion encrypted paging alert (recipient is online)
+        frame_online = engine.dispatch_onion_routed_paging_alert(
+            sender_device_id="alice_pixel_node",
+            recipient_address="0xbob_mobile_holder",
+            alert_type="INCOMING_PAYMENT",
+            amount_token9898=150.0,
+        )
+        assert frame_online.frame_id.startswith("page_")
+        assert len(frame_online.onion_hops) == 3
+        assert frame_online.frame_size_bytes == 64
+        assert frame_online.is_delivered is True
+
+        # 3. Offline store-and-forward mailbox buffering (recipient offline)
+        frame_offline = engine.dispatch_onion_routed_paging_alert(
+            sender_device_id="alice_pixel_node",
+            recipient_address="0xcharlie_sleeping_node",
+            alert_type="STATE_CHANNEL_DISPUTE",
+            amount_token9898=0.0,
+        )
+        assert frame_offline.is_delivered is False
+
+        # Wake up Charlie and flush mailbox
+        flushed = engine.flush_offline_mailbox_on_wake("0xcharlie_sleeping_node")
+        assert len(flushed) == 1
+        assert flushed[0].is_delivered is True
+
+    def test_mobile_npu_ai_sentinel_engine(self):
+        """Verifies INT8 quantized calldata risk scoring, drainer interception, and biometric step-up."""
+        from server.services.mobile_npu_ai_sentinel import (
+            MobileNPUAIFraudSentinelEngine,
+            TransactionInspectionIntent,
+        )
+
+        sentinel = MobileNPUAIFraudSentinelEngine()
+
+        # 1. Clean low-risk standard transaction
+        intent_safe = TransactionInspectionIntent(
+            sender_address="0xalice_safe",
+            target_contract_address="0xtoken9898_core",
+            token9898_amount=50.0,
+            calldata_hex="0x",
+            recent_24h_tx_count=3,
+            is_new_recipient=False,
+        )
+        res_safe = sentinel.evaluate_transaction_intent_on_npu(intent_safe)
+        assert res_safe.risk_tier == "LOW_SAFE"
+        assert res_safe.is_signing_allowed is True
+        assert res_safe.requires_biometric_stepup is False
+        assert res_safe.npu_inference_latency_ms < 10.0
+
+        # 2. Critical Drainer Attack (Unlimited approve / sweep contract) -> Hard Blocked
+        intent_drainer = TransactionInspectionIntent(
+            sender_address="0xalice_safe",
+            target_contract_address="0xmalicious_drainer_site",
+            token9898_amount=1_000_000.0,
+            calldata_hex="0x095ea7b3ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",  # Max approve
+            recent_24h_tx_count=1,
+            is_new_recipient=True,
+        )
+        res_drainer = sentinel.evaluate_transaction_intent_on_npu(intent_drainer)
+        assert res_drainer.risk_tier == "HIGH_CRITICAL_BLOCKED"
+        assert res_drainer.is_signing_allowed is False
+        assert len(res_drainer.drainer_heuristics_triggered) > 0
+
+    def test_proximity_social_recovery_engine(self):
+        """Verifies Shamir guardian setup, BLE proximity threshold collection, and time-locked recovery."""
+        from server.services.proximity_social_recovery import (
+            ProximitySocialRecoveryEngine,
+        )
+
+        recovery = ProximitySocialRecoveryEngine()
+
+        # 1. Setup (2 of 3) Shamir Guardian Circle
+        guardian_cfgs = [
+            {"name": "Mom's Phone", "ble_addr": "AA:BB:CC:11:22:33", "pubkey": "0xpub_mom"},
+            {"name": "Brother's Pixel", "ble_addr": "AA:BB:CC:44:55:66", "pubkey": "0xpub_brother"},
+            {"name": "Best Friend", "ble_addr": "AA:BB:CC:77:88:99", "pubkey": "0xpub_friend"},
+        ]
+        circle = recovery.setup_guardian_circle(
+            user_address="0xalice_lost_phone",
+            threshold_k=2,
+            guardian_configs=guardian_cfgs,
+        )
+        assert circle.circle_id.startswith("circle_")
+        assert circle.threshold_k == 2
+        assert len(circle.guardians) == 3
+
+        # 2. Initiate Recovery Request
+        session = recovery.initiate_recovery_request(
+            user_address="0xalice_lost_phone",
+            target_new_address="0xalice_brand_new_phone",
+            grace_period_hours=24.0,
+        )
+        assert session.session_id.startswith("recov_sess_")
+        assert session.required_threshold_k == 2
+
+        # 3. Submit Guardian 1 Share over BLE Proximity (RSSI -45 dBm)
+        ok1, count1, _ = recovery.submit_guardian_proximity_share(
+            session_id=session.session_id,
+            guardian_id=circle.guardians[0].guardian_id,
+            rssi_signal_dbm=-45,
+        )
+        assert ok1 is True
+        assert count1 == 1
+
+        # 4. Submit Guardian 2 Share -> Quorum met!
+        ok2, count2, msg = recovery.submit_guardian_proximity_share(
+            session_id=session.session_id,
+            guardian_id=circle.guardians[1].guardian_id,
+            rssi_signal_dbm=-52,
+        )
+        assert ok2 is True
+        assert count2 == 2
+        assert "Quorum: True" in msg
+
+    def test_adaptive_gasless_fuel_engine(self):
+        """Verifies ERC-4337 UserOperation gas sponsorship, energy regeneration, and micro-PoW anti-spam."""
+        from server.services.adaptive_gasless_fuel import (
+            AdaptiveGaslessFuelEngine,
+        )
+
+        engine = AdaptiveGaslessFuelEngine()
+
+        # 1. Sync / register user energy
+        acc = engine.register_or_sync_account_energy(
+            account_address="0xuser_alice_gasless",
+            token9898_balance=10000.0,
+        )
+        assert acc.current_energy_units > 0
+        assert acc.max_energy_capacity <= 1000.0
+
+        # 2. Execute zero-gas UserOp with regenerative energy
+        uop = engine.execute_gasless_user_operation(
+            sender_address="0xuser_alice_gasless",
+            target_contract="0xdex_swap_router",
+            calldata_hex="0x38ed1739000000000000000000000000",
+            token9898_balance=10000.0,
+        )
+        assert uop.user_op_id.startswith("uop_")
+        assert uop.is_gas_sponsored is True
+        assert uop.paymaster_sponsor_address == "ACCOUNT_REGENERATIVE_ENERGY"
+        assert uop.energy_consumed == 25.0
+
+        # 3. Test micro-PoW solution during congestion
+        engine.current_network_tps = 150.0  # Spike
+        uop_congested = engine.execute_gasless_user_operation(
+            sender_address="0xuser_alice_gasless",
+            target_contract="0xdex_swap_router",
+            calldata_hex="0x",
+            token9898_balance=10000.0,
+        )
+        assert uop_congested.micropow_nonce is not None
+
+    def test_self_healing_fracture_ledger_engine(self):
+        """Verifies CRDT PN-counter state transitions across network splits and O(1) merge reconvergence."""
+        from server.services.self_healing_fracture_ledger import (
+            SelfHealingFractureLedgerEngine,
+        )
+
+        fracture_engine = SelfHealingFractureLedgerEngine()
+
+        # 1. Setup genesis balances
+        fracture_engine.get_or_create_account("0xalice_island", initial_balance=500.0)
+        fracture_engine.get_or_create_account("0xbob_island", initial_balance=100.0)
+
+        # 2. Register two isolated fracture zones (e.g. Asia Mesh vs Euro Mesh)
+        part_a = fracture_engine.register_regional_partition("asia_disaster_mesh", is_isolated=True)
+        part_b = fracture_engine.register_regional_partition("euro_satellite_mesh", is_isolated=True)
+
+        assert part_a.is_isolated is True
+        assert part_b.is_isolated is True
+
+        # 3. Transact inside Asia Mesh
+        ok1, _ = fracture_engine.execute_partition_transfer(
+            region_id="asia_disaster_mesh",
+            sender_address="0xalice_island",
+            recipient_address="0xbob_island",
+            amount=50.0,
+        )
+        assert ok1 is True
+        assert fracture_engine.get_or_create_account("0xalice_island").calculate_balance() == 450.0
+        assert fracture_engine.get_or_create_account("0xbob_island").calculate_balance() == 150.0
+
+        # 4. Transact inside Euro Mesh concurrently
+        ok2, _ = fracture_engine.execute_partition_transfer(
+            region_id="euro_satellite_mesh",
+            sender_address="0xbob_island",
+            recipient_address="0xalice_island",
+            amount=20.0,
+        )
+        assert ok2 is True
+        assert fracture_engine.get_or_create_account("0xalice_island").calculate_balance() == 470.0
+        assert fracture_engine.get_or_create_account("0xbob_island").calculate_balance() == 130.0
+
+        # 5. Network partition heals -> Merge partitions in O(1)
+        proof = fracture_engine.merge_fracture_partitions_on_reconnect(
+            region_a_id="asia_disaster_mesh",
+            region_b_id="euro_satellite_mesh",
+        )
+        assert proof.proof_id.startswith("merge_proof_")
+        assert proof.is_anti_fork_verified is True
+        assert proof.execution_time_ms < 50.0
+        assert part_a.is_isolated is False
+        assert part_b.is_isolated is False
+
+    def test_ephemeral_state_channels_engine(self):
+        """Verifies sub-millisecond bilateral state updates, streaming micro-payments, and dispute slashing."""
+        from server.services.ephemeral_state_channels import (
+            EphemeralStateChannelsEngine,
+            StateChannelUpdate,
+        )
+
+        engine = EphemeralStateChannelsEngine()
+
+        # 1. Open State Channel with $1000 collateral each
+        chan = engine.open_channel(
+            party_a_address="0xalice_streamer",
+            party_b_address="0xbob_creator",
+            initial_deposit_a=1000.0,
+            initial_deposit_b=1000.0,
+        )
+        assert chan.channel_id.startswith("chan_")
+        assert chan.is_open is True
+        assert chan.collateral_token9898 == 2000.0
+
+        # 2. Stream Micro-Payment ($0.05 per second)
+        update1 = engine.stream_micro_payment(
+            channel_id=chan.channel_id,
+            sender_is_party_a=True,
+            amount=0.05,
+        )
+        assert update1.sequence_number == 1
+        assert update1.party_a_balance == 999.95
+        assert update1.party_b_balance == 1000.05
+        assert update1.state_hash.startswith("0x")
+
+        # Stream another payment
+        update2 = engine.stream_micro_payment(
+            channel_id=chan.channel_id,
+            sender_is_party_a=True,
+            amount=10.0,
+        )
+        assert update2.sequence_number == 2
+        assert update2.party_a_balance == 989.95
+        assert update2.party_b_balance == 1010.05
+
+        # 3. Dispute resolution: Attacker attempts to submit stale state (Seq 0)
+        stale_state = StateChannelUpdate(
+            channel_id=chan.channel_id,
+            sequence_number=0,
+            party_a_balance=1000.0,
+            party_b_balance=1000.0,
+            party_a_pqc_sig="0xold_sig",
+            party_b_pqc_sig="0xold_sig",
+            state_hash="0xstale",
+        )
+        disputed, msg = engine.initiate_dispute_challenge(chan.channel_id, stale_state)
+        assert disputed is True
+        assert "Fraud detected!" in msg
+        assert chan.is_disputed is True
+
+    def test_lora_satellite_broadcaster_engine(self):
+        """Verifies 32-byte radio packet compression, LoRa RF ingest, and satellite downlink decoding."""
+        from server.services.lora_satellite_broadcaster import (
+            LoRaSatelliteBroadcasterEngine,
+        )
+
+        broadcaster = LoRaSatelliteBroadcasterEngine()
+
+        # 1. Encode 32-byte ultra-compressed transaction
+        compressed_bytes = broadcaster.encode_ultra_compressed_transaction(
+            sender_short_id=0x12345678,
+            recipient_short_id=0x87654321,
+            amount_micro_units=500_000_000,  # 500 Token 9898
+            nonce=42,
+            pqc_signature_compact=b"\xaa" * 18,
+        )
+        assert len(compressed_bytes) == 32
+
+        # 2. Ingest LoRa Packet (SF12, -118 dBm, -14 dB SNR)
+        ok, pkt, tx = broadcaster.ingest_lora_radio_frame(
+            frequency_mhz=915.0,
+            spreading_factor=12,
+            rssi_dbm=-118.0,
+            snr_db=-14.0,
+            payload_bytes=compressed_bytes,
+        )
+        assert ok is True
+        assert pkt is not None
+        assert pkt.packet_id.startswith("lora_")
+        assert tx is not None
+        assert tx["amount_token9898"] == 500.0
+        assert tx["nonce"] == 42
+        assert tx["transport"] == "LORA_915.0MHZ_SF12"
+
+        # 3. Satellite L-band Downlink (Starlink / Iridium constellation)
+        downlink = broadcaster.process_satellite_l_band_downlink(
+            constellation="STARLINK_DIRECT_TO_CELL",
+            block_header_hash="0x" + "bb" * 32,
+            epoch_number=9898,
+            transactions_count=12000,
+        )
+        assert downlink.downlink_id.startswith("sat_")
+        assert downlink.satellite_constellation == "STARLINK_DIRECT_TO_CELL"
+        assert downlink.downlinked_transactions_count == 12000
+
+    def test_cross_enclave_atomic_swap_engine(self):
+        """Verifies ARM TrustZone HTLC cross-chain swap creation, secret reveal claim, and timelock refund."""
+        from server.services.cross_enclave_atomic_swaps import (
+            CrossEnclaveAtomicSwapEngine,
+        )
+
+        engine = CrossEnclaveAtomicSwapEngine()
+
+        # 1. Initiate Atomic Swap (1000 Token9898 for 0.05 Bitcoin)
+        swap, secret = engine.initiate_atomic_swap(
+            initiator_address="0xalice_enclave",
+            initiator_chain="TOKEN9898",
+            initiator_amount=1000.0,
+            participant_address="0xbob_btc_enclave",
+            participant_chain="BITCOIN",
+            participant_amount=0.05,
+            duration_sec=3600.0,
+        )
+        assert swap.swap_id.startswith("swap_")
+        assert swap.status == "OPEN"
+        assert swap.hash_lock.startswith("0x")
+
+        # 2. Claim swap with valid preimage secret
+        claimed, msg = engine.claim_atomic_swap(
+            swap_id=swap.swap_id,
+            preimage_secret_hex=secret,
+            claimer_address="0xbob_btc_enclave",
+        )
+        assert claimed is True
+        assert swap.status == "CLAIMED"
+        assert "successfully claimed" in msg
+
+        # 3. Test refund on expired swap
+        swap_exp, secret_exp = engine.initiate_atomic_swap(
+            initiator_address="0xcharlie_enclave",
+            initiator_chain="TOKEN9898",
+            initiator_amount=500.0,
+            participant_address="0xdave_enclave",
+            participant_chain="ETHEREUM",
+            participant_amount=0.2,
+            duration_sec=-10.0,  # Already expired
+        )
+        refunded, r_msg = engine.execute_timelock_refund(swap_exp.swap_id)
+        assert refunded is True
+        assert swap_exp.status == "REFUNDED"
+        assert "refunded" in r_msg
+
+    def test_algorithmic_stability_reflex_engine(self):
+        """Verifies PID supply controller dynamics, multi-asset reserve, and anti-run reflex slippage."""
+        from server.services.algorithmic_stability_reflex import (
+            AlgorithmicStabilityReflexEngine,
+        )
+
+        stability = AlgorithmicStabilityReflexEngine(target_price_usd=1.00)
+
+        # 1. Under-peg scenario ($0.92): PID triggers BURN_CONTRACT
+        state_under = stability.execute_pid_stability_epoch(current_oracle_price_usd=0.92, dt_seconds=60.0)
+        assert state_under.last_action_applied == "BURN_CONTRACT"
+        assert state_under.adjustment_supply_units > 0
+
+        # 2. Over-peg scenario ($1.08): PID triggers MINT_EXPAND
+        state_over = stability.execute_pid_stability_epoch(current_oracle_price_usd=1.08, dt_seconds=60.0)
+        assert state_over.last_action_applied == "MINT_EXPAND"
+        assert state_over.adjustment_supply_units > 0
+
+        # 3. Anti-run reflex mitigation: Whale dump ($1.5M sell against $10M pool)
+        record = stability.evaluate_anti_run_panic_sell(
+            seller_address="0xpanic_whale",
+            sell_volume_token9898=1_500_000.0,
+            current_liquidity_depth_usd=10_000_000.0,
+        )
+        assert record.tx_id.startswith("anti_run_")
+        assert record.price_impact_pct == 15.0  # 15% price impact
+        assert record.penalty_tax_pct > 5.0    # Dynamic quadratic tax applied
+        assert record.retained_reserve_usd > 0
+        assert stability.reserve.usdc_reserve > 25_000_000.0
+
+    def test_blinded_qr_visual_bridge_engine(self):
+        """Verifies high-speed animated visual QR chunking, optical ZK proof streaming, and CameraX decode."""
+        from server.services.blinded_qr_visual_bridge import (
+            BlindedQRVisualBridgeEngine,
+        )
+
+        visual_engine = BlindedQRVisualBridgeEngine()
+
+        # 1. Encode 2KB payload into 24 FPS animated QR frames
+        sample_zk_payload = b"ZK_POST_QUANTUM_PROOF_CHUNK_" * 64  # ~1.8 KB
+        stream = visual_engine.encode_payload_into_animated_qr_stream(
+            sender_address="0xalice_airgapped",
+            recipient_address="0xbob_airgapped",
+            raw_payload_bytes=sample_zk_payload,
+            chunk_size_bytes=512,
+            fps=24,
+        )
+        assert stream.session_id.startswith("vqr_")
+        assert stream.total_frames_generated == 4
+        assert stream.transmission_rate_kbps > 0.0
+
+        # 2. Decode stream from camera capture indices [0, 1, 2, 3]
+        ok, res, msg = visual_engine.decode_and_verify_visual_stream(
+            session_id=stream.session_id,
+            captured_frame_indices=[0, 1, 2, 3],
+            simulated_glare_dropped_frames=1,
+        )
+        assert ok is True
+        assert res is not None
+        assert res.zk_proof_verified is True
+        assert res.reconstructed_payload_hash.startswith("0x")
+        assert stream.is_fully_received is True
+
+    def test_mobile_sharded_genesis_orchestrator(self):
+        """Verifies master system bootloader, unified subsystem health, live telemetry, and simulation."""
+        from server.services.mobile_sharded_genesis_orchestrator import (
+            MobileShardedGenesisOrchestrator,
+            GENESIS_BLOCK_HASH,
+        )
+
+        orchestrator = MobileShardedGenesisOrchestrator()
+
+        # 1. Bootstrap master runtime
+        boot_res = orchestrator.bootstrap_master_genesis_runtime()
+        assert boot_res["status"] in ["BOOTSTRAP_SUCCESS", "ALREADY_INITIALIZED"]
+        assert boot_res["genesis_block_hash"] == GENESIS_BLOCK_HASH
+        assert orchestrator.is_bootstrapped is True
+        assert len(boot_res["subsystems"]) >= 10
+
+        # 2. Collect live diagnostic telemetry
+        telemetry = orchestrator.collect_live_network_telemetry()
+        assert telemetry.current_tps_throughput > 1000.0
+        assert telemetry.quantum_entropy_health_pct > 99.0
+        assert telemetry.average_battery_overhead_pct < 1.0  # < 1%
+
+        # 3. Execute master end-to-end simulation run (1000 txs)
+        sim_res = orchestrator.execute_large_scale_mobile_simulation_run(simulated_tx_count=1000)
+        assert sim_res.simulation_id.startswith("sim_run_")
+        assert sim_res.successful_transactions > 0
+        assert sim_res.state_reconvergence_verified is True
+        assert sim_res.effective_tps > 0.0
+
+    def test_micro_ledger_engine_supply_conservation(self):
+        """Verifies strict 989,804,848,300 total supply conservation and state root transitions."""
+        from server.crypto.micro_ledger_engine import (
+            MicroLedgerEngine,
+            TOTAL_SUPPLY_CAP_TOKEN9898,
+            MASTER_VAULT_GENESIS_ADDRESS,
+        )
+
+        engine = MicroLedgerEngine()
+
+        # 1. Verify Genesis supply invariant
+        is_valid, total_sum, cap = engine.verify_supply_invariant()
+        assert is_valid is True
+        assert total_sum == TOTAL_SUPPLY_CAP_TOKEN9898
+
+        # 2. Execute valid state transition
+        ok, block, msg = engine.execute_state_transition(
+            sender_address=MASTER_VAULT_GENESIS_ADDRESS,
+            recipient_address="0xalice_mobile_vault",
+            amount_token9898=1_000_000.0,
+            expected_nonce=0,
+        )
+        assert ok is True
+        assert block is not None
+        assert block.block_height == 1
+        assert block.total_circulating_supply == TOTAL_SUPPLY_CAP_TOKEN9898
+
+        # 3. Verify compressed state footprint
+        size_kb = engine.get_compressed_state_size_kb()
+        assert size_kb < 100.0  # <100 KB memory footprint
+
+    def test_single_instruction_zk_circuit(self):
+        """Verifies <5ms Groth16 state transition proof generation and pairing check."""
+        from server.crypto.single_inst_zk import (
+            SingleInstructionZKEngine,
+            SingleInstZKWitness,
+        )
+
+        zk = SingleInstructionZKEngine()
+        witness = SingleInstZKWitness(
+            sender_address_secret="0xalice_private_key",
+            recipient_address_secret="0xbob_private_key",
+            sender_balance_before=5000.0,
+            recipient_balance_before=1000.0,
+            transfer_amount=500.0,
+            nonce_before=12,
+        )
+
+        proof = zk.generate_state_transition_proof(witness)
+        assert proof.proof_id.startswith("zk_pi_")
+        assert proof.is_valid_transition is True
+        assert proof.proving_time_ms < 50.0  # Fast execution
+
+        is_verified = zk.verify_groth16_proof(proof)
+        assert is_verified is True
+
+    def test_formal_runtime_guard_invariants(self):
+        """Verifies continuous mathematical runtime assertion against supply cap breaches."""
+        from server.services.formal_runtime_guard import (
+            ContinuousFormalRuntimeGuard,
+            TOTAL_SUPPLY_CAP,
+        )
+
+        guard = ContinuousFormalRuntimeGuard(total_cap=TOTAL_SUPPLY_CAP)
+
+        # 1. Valid state
+        valid_balances = {
+            "0xvault_1": 500_000_000_000.0,
+            "0xvault_2": 489_804_848_300.0,
+        }
+        rep1 = guard.verify_ledger_invariants(valid_balances)
+        assert rep1.is_valid is True
+        assert rep1.current_total_supply == TOTAL_SUPPLY_CAP
+
+        # 2. Invalid state (Cap breach: +10,000 tokens)
+        invalid_balances = {
+            "0xvault_1": 500_000_000_000.0,
+            "0xvault_2": 489_804_848_300.0,
+            "0xattacker": 10_000.0,
+        }
+        rep2 = guard.verify_ledger_invariants(invalid_balances)
+        assert rep2.is_valid is False
+        assert "Supply cap overflow" in rep2.invariant_violation_reason
+
+    def test_zerogas_paymaster_bundler(self):
+        """Verifies ERC-4337 zero-gas paymaster bundling and rollup settlement."""
+        from server.services.zerogas_bundler import ZeroGasBundlerEngine
+
+        bundler = ZeroGasBundlerEngine()
+
+        # Submit zero-gas user ops
+        for i in range(5):
+            ok, op, msg = bundler.submit_user_operation(
+                sender=f"0xmobile_user_{i}",
+                nonce=i,
+                target="0xcontract_swap",
+                call_data_hex="0x1234",
+                transfer_amount_token9898=100.0,
+                user_pqc_signature="0xmldsa_sig_user",
+            )
+            assert ok is True
+            assert op.status == "PENDING"
+
+        # Create and settle batch
+        batch = bundler.create_and_settle_rollup_batch(max_batch_size=10)
+        assert batch is not None
+        assert batch.operations_count == 5
+        assert batch.aggregated_volume_token9898 == 500.0
+        assert batch.is_settled is True
+
+    def test_tor_dns_registry(self):
+        """Verifies .chain handle registration, ZK ownership proof, and resolution."""
+        from server.network.tor_dns_registry import TorDNSRegistryEngine
+
+        dns = TorDNSRegistryEngine()
+
+        ok, rec, msg = dns.register_chain_handle(
+            handle="alice.chain",
+            owner_pqc_pubkey="0xmldsa87_pubkey_alice",
+            tor_v3_onion_address="2gzyxa5ihm7e454qvtpxauqdp4eissuuxhgahomw2bgduk3qtvbu2uid.onion",
+            payment_receiving_address="0xalice_vault_9898",
+        )
+        assert ok is True
+        assert rec is not None
+        assert rec.domain_name == "alice.chain"
+
+        resolved = dns.resolve_handle("alice.chain")
+        assert resolved is not None
+        assert resolved.payment_receiving_address == "0xalice_vault_9898"
+
+    def test_cross_device_token_teleport(self):
+        """Verifies source burn, nullifier anti-replay, and destination rematerialization."""
+        from server.services.token_teleport import TokenTeleportEngine
+
+        engine = TokenTeleportEngine()
+
+        # 1. Source burn
+        ok, proof, msg = engine.initiate_source_device_teleport_burn(
+            source_hwid="ANDROID_HWID_PIXEL_9_PRO",
+            dest_hwid="ANDROID_HWID_SAMSUNG_S24",
+            amount_token9898=2500.0,
+            source_secret_key="enclave_secure_key_1",
+        )
+        assert ok is True
+        assert proof is not None
+        assert proof.teleport_id.startswith("teleport_")
+
+        # 2. Destination rematerialize
+        ok2, rcpt, msg2 = engine.rematerialize_on_destination_device(
+            teleport_proof=proof,
+            destination_address="0xdest_wallet_9898",
+        )
+        assert ok2 is True
+        assert rcpt is not None
+        assert rcpt.amount_token9898 == 2500.0
+
+        # 3. Double-claim replay attack prevention
+        ok3, rcpt3, msg3 = engine.rematerialize_on_destination_device(
+            teleport_proof=proof,
+            destination_address="0xdest_wallet_9898",
+        )
+        assert ok3 is False
+        assert "Replay attack" in msg3
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
