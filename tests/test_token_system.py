@@ -7593,6 +7593,605 @@ class TestShardingDynamicAMMAndSatelliteDTN:
         assert downlink["fec_parity_status"] == "REED_SOLOMON_CORRECTION_VALID"
 
 
+class TestRecursiveSTARKCreditVaultAndSwarmConsensus:
+    """Validates Prompt 170 (Recursive zk-STARK Aggregator), Prompt 171 (Undercollateralized Credit Vault), Prompt 172 (AI Swarm Consensus)."""
+
+    def test_recursive_zk_stark_aggregator(self):
+        """Verifies base STARK proof generation, binary recursive tree folding over BabyBear field, and O(1) root proof verification."""
+        from server.crypto.recursive_zk_stark_aggregator import RecursiveZKSTARKAggregator
+
+        agg = RecursiveZKSTARKAggregator()
+
+        # 1. Generate 4 leaf STARK proofs
+        leaf1 = agg.generate_base_stark_proof(1, "trace_digest_step_1")
+        leaf2 = agg.generate_base_stark_proof(2, "trace_digest_step_2")
+        leaf3 = agg.generate_base_stark_proof(3, "trace_digest_step_3")
+        leaf4 = agg.generate_base_stark_proof(4, "trace_digest_step_4")
+
+        assert leaf1.proof_id.startswith("stark_leaf_")
+        assert len(leaf1.fri_layers_commitments) == 3
+
+        # 2. Aggregate tree into single root STARK proof
+        summary = agg.aggregate_batch_proof_tree([leaf1.proof_id, leaf2.proof_id, leaf3.proof_id, leaf4.proof_id])
+        assert summary.total_base_proofs_aggregated == 4
+        assert summary.tree_height == 2
+        assert summary.compressed_root_size_bytes > 0
+        assert summary.compression_ratio >= 1.0
+
+        # 3. Constant-time root proof verification
+        is_valid = agg.verify_recursive_root_proof(summary.root_proof_id)
+        assert is_valid is True
+
+    def test_undercollateralized_credit_vault(self):
+        """Verifies ZK credit solvency proof, kinked borrow rate calculation, undercollateralized line origination, and draw/repay."""
+        from server.services.undercollateralized_credit_vault import UndercollateralizedCreditVaultEngine
+
+        vault = UndercollateralizedCreditVaultEngine()
+
+        # 1. Check dynamic borrow rate
+        base_rate = vault.calculate_borrow_rate()
+        assert base_rate >= 3.5
+
+        # 2. Apply for undercollateralized line of credit with ZK proof
+        line = vault.apply_for_zk_credit_line(
+            borrower_did="did:token9898:institutional_fund_a",
+            credit_rating="AAA",
+            requested_limit_usdp=2_000_000.0,
+            zk_solvency_proof_hex="0xzk_solvency_groth16_valid_cert",
+        )
+        assert line.line_id.startswith("cred_line_")
+        assert line.credit_limit_usdp == 2_000_000.0
+        assert line.collateral_posted_usdp == 0.0
+
+        # 3. Draw funds
+        draw = vault.draw_credit_funds(line.line_id, 500_000.0)
+        assert draw["status"] == "FUNDS_DISBURSED_UNCOLLATERALIZED"
+        assert line.outstanding_debt_usdp == 500_000.0
+
+        # 4. Repay funds
+        repay = vault.repay_credit_funds(line.line_id, 200_000.0)
+        assert repay["status"] == "REPAID_SUCCESSFULLY"
+        assert line.outstanding_debt_usdp == 300_000.0
+
+    def test_ai_agent_swarm_consensus_engine(self):
+        """Verifies DAG task decomposition, weighted multi-agent BFT supermajority voting, and autonomous action execution."""
+        from server.services.ai_agent_swarm_consensus import AIAgentSwarmConsensusEngine
+
+        swarm = AIAgentSwarmConsensusEngine()
+
+        # 1. Submit complex task intent
+        task = swarm.submit_swarm_intent_task(
+            intent_description="Deploy 1M USDP to RWA Solar Farm while hedging volatility",
+            initiator_did="did:token9898:treasury_operator",
+        )
+        assert task.task_id.startswith("swarm_task_")
+        assert len(task.dag_subtask_steps) == 4
+
+        # 2. Swarm deliberation & BFT vote
+        vote_res = swarm.conduct_swarm_deliberation_and_vote(task.task_id)
+        assert vote_res["bft_agreement_score_percent"] >= 66.7
+        assert vote_res["status"] == "CONSENSUS_REACHED"
+
+        # 3. Autonomous execution on-chain
+        exec_res = swarm.execute_swarm_consensus_action(task.task_id)
+        assert exec_res["status"] == "SWARM_INTENT_AUTONOMOUSLY_EXECUTED"
+        assert task.status == "EXECUTED"
+
+
+class TestDIDDePINAndCBDCGateway:
+    """Validates Prompt 173 (Post-Quantum DID & ZK-VCs), Prompt 174 (DePIN Compute/Energy PoPW), Prompt 175 (CBDC ISO 20022 RTGS Gateway)."""
+
+    def test_post_quantum_did_zk_vault(self):
+        """Verifies W3C DID registration, Verifiable Credential issuance, ZK selective disclosure, and cryptographic revocation."""
+        from server.crypto.post_quantum_did_zk_vault import PostQuantumDIDZKVaultEngine
+
+        vault = PostQuantumDIDZKVaultEngine()
+
+        # 1. Register user DID
+        did_doc = vault.register_user_did("alice_institution", key_algorithm="ML-DSA-87")
+        assert did_doc.did == "did:token9898:alice_institution"
+        assert did_doc.key_algorithm == "ML-DSA-87"
+
+        # 2. Issue VC
+        vc = vault.issue_verifiable_credential(
+            issuer_did="did:token9898:authority_master_kyc",
+            subject_did=did_doc.did,
+            schema_name="AccreditedInvestorCredential",
+            claims={"is_accredited": True, "jurisdiction": "CHE", "age": 34, "tier": "INSTITUTIONAL"},
+        )
+        assert vc.credential_id.startswith("vc_")
+        assert vc.issuer_signature_hex.startswith("0xsig_ml-dsa-87_")
+
+        # 3. Generate and verify ZK Selective Disclosure proof (Zero-PII)
+        zk_proof = vault.generate_zk_selective_disclosure_proof(
+            credential_id=vc.credential_id,
+            holder_did=did_doc.did,
+            predicate_query={"is_accredited": True, "is_over_18": True},
+            verifier_nonce="nonce_test_123",
+        )
+        assert zk_proof.proof_id.startswith("zk_disc_")
+        is_valid = vault.verify_zk_selective_disclosure_proof(zk_proof, expected_nonce="nonce_test_123")
+        assert is_valid is True
+
+        # 4. Revocation test
+        rev = vault.revoke_credential(vc.credential_id)
+        assert rev["status"] == "REVOKED_AND_ACCUMULATED"
+        assert vault.verify_zk_selective_disclosure_proof(zk_proof, expected_nonce="nonce_test_123") is False
+
+    def test_depin_compute_energy_verifier(self):
+        """Verifies hardware TPM attestation, Proof of Physical Work (PoPW) submission, clean energy verification, and reward dispensing."""
+        from server.services.depin_compute_energy_verifier import DePINComputeEnergyVerifierEngine
+
+        depin = DePINComputeEnergyVerifierEngine()
+
+        # 1. Register new hardware node
+        node = depin.register_depin_node(
+            node_type="SOLAR_ENERGY_GRID",
+            operator_did="did:token9898:operator_solar_alps",
+            tpm_attestation_hex="0xtpm2_smartmeter_schneider_valid_cert",
+            location_geohash="u4pruydqqvj",
+        )
+        assert node.node_id.startswith("depin_node_")
+
+        # 2. Submit clean energy physical work (1000 kWh)
+        popw = depin.submit_and_verify_physical_work(
+            node_id=node.node_id,
+            work_category="CLEAN_ENERGY_KWH",
+            metric_quantity=1000.0,
+            zk_popw_proof_hex="0xzk_popw_energy_sma_proof_ok",
+        )
+        assert popw.proof_id.startswith("popw_")
+        assert popw.reward_granted_token9898 == 500.0  # 1000 * 0.5
+        assert popw.reward_granted_usdp == 100.0      # 1000 * 0.10
+        assert node.total_work_units_delivered == 1000.0
+
+    def test_cbdc_iso20022_rtgs_gateway(self):
+        """Verifies ISO 20022 pacs.008 credit transfer, end-to-end UETR tracking, and atomic CBDC PvP foreign exchange settlement."""
+        from server.services.cbdc_iso20022_rtgs_gateway import CBDCISO20022RTGSGatewayEngine
+
+        rtgs = CBDCISO20022RTGSGatewayEngine()
+
+        # 1. Dispatch ISO 20022 pacs.008 interbank transfer
+        msg = rtgs.dispatch_iso20022_pacs008_transfer(
+            sender_bic="CHASUS33XXX",
+            receiver_bic="BNPAFRPPXXX",
+            amount=5_000_000.0,
+            currency="USDP",
+        )
+        assert msg.message_id.startswith("msg_")
+        assert msg.message_type == "pacs.008.001.10"
+        assert msg.end_to_end_uetr.startswith("uetr-")
+        assert msg.status == "ACCEPTED_SETTLEMENT_FINAL"
+
+        # 2. Execute Atomic CBDC PvP Foreign Exchange Swap
+        swap = rtgs.initiate_cbdc_atomic_pvp_swap(
+            initiator_cb="MAS_SINGAPORE",
+            counterparty_cb="SNB_SWITZERLAND",
+            sell_currency="SGD_CBDC",
+            sell_amount=1_350_000.0,
+            buy_currency="USDP",
+            buy_amount=1_000_000.0,
+        )
+        assert swap.swap_id.startswith("pvp_")
+
+        fin = rtgs.finalize_cbdc_atomic_pvp_swap(swap.swap_id)
+        assert fin["status"] == "PVP_SETTLEMENT_HERSTATT_FREE_FINALIZED"
+        assert swap.is_settled is True
+
+
+class TestFHEMixerAndLSDRestakingVault:
+    """Validates Prompt 176 (Quantum FHE Confidential VM), Prompt 177 (ZK Shielded Mixer & Stealth Paymaster), Prompt 178 (AI LSD Restaking Vault)."""
+
+    def test_quantum_fhe_confidential_vm(self):
+        """Verifies Ring-LWE ciphertext encryption, blind homomorphic addition, noise budget tracking, and confidential transfer."""
+        from server.crypto.quantum_fhe_confidential_vm import QuantumFHEConfidentialVMEngine
+
+        fhe_vm = QuantumFHEConfidentialVMEngine()
+
+        # 1. Encrypt plaintext amount
+        ct_alice = fhe_vm.encrypt_plaintext_value("did:token9898:alice", 1500.0)
+        assert ct_alice.ciphertext_id.startswith("fhe_ct_")
+        assert ct_alice.noise_budget_bits == 64
+        assert ct_alice.encrypted_payload_hex.startswith("0xrlwe_poly_")
+
+        # 2. Homomorphic addition
+        ct_deposit = fhe_vm.encrypt_plaintext_value("did:token9898:alice", 500.0)
+        ct_sum = fhe_vm.homomorphic_add(ct_alice.ciphertext_id, ct_deposit.ciphertext_id, "did:token9898:alice")
+        assert ct_sum.ciphertext_id.startswith("fhe_ct_")
+        assert ct_sum.noise_budget_bits == 60  # Reduced by 4 bits
+
+        # 3. Confidential transfer with ZK range proof
+        transfer_res = fhe_vm.execute_confidential_transfer(
+            sender_did="did:token9898:alice",
+            receiver_did="did:token9898:bob",
+            transfer_amount_ct_id=ct_deposit.ciphertext_id,
+            zk_range_proof_hex="0xzk_range_bulletproof_valid_nonnegative",
+        )
+        assert transfer_res["status"] == "CONFIDENTIAL_HOMOMORPHIC_TRANSFER_SETTLED"
+        assert transfer_res["confidential_tx_hash"].startswith("0xconf_tx_")
+
+    def test_zk_anonymous_mixer_and_stealth_paymaster(self):
+        """Verifies shielded deposit commitment generation, secret note formatting, ZK withdrawal nullifier spending, and DKSAP stealth address."""
+        from server.services.zk_anonymous_mixer_stealth_paymaster import ZKAnonymousMixerStealthPaymasterEngine
+
+        mixer = ZKAnonymousMixerStealthPaymasterEngine()
+
+        # 1. Deposit into shielded pool
+        dep = mixer.deposit_shielded_funds(denomination_amount=100.0, asset_symbol="USDP")
+        assert dep["commitment_hash"].startswith("0xcomm_")
+        assert dep["nullifier_hash"].startswith("0xnull_")
+        assert "shielded-note-usdp-100" in dep["secret_note"]
+
+        # 2. Generate Post-Quantum DKSAP Stealth Address
+        stealth = mixer.generate_stealth_address(
+            recipient_view_pubkey_hex="0xview_key_alice_pub",
+            recipient_spend_pubkey_hex="0xspend_key_alice_pub",
+        )
+        assert stealth.stealth_recipient_address.startswith("0xstealth_")
+        assert stealth.ephemeral_public_key_hex.startswith("0xmlkem1024_")
+
+        # 3. Withdraw funds anonymously via Paymaster
+        withdr = mixer.withdraw_shielded_funds(
+            nullifier_hash=dep["nullifier_hash"],
+            recipient_stealth_address=stealth.stealth_recipient_address,
+            zk_membership_proof_hex="0xzk_groth16_merkle_valid",
+            relayer_fee_percent=0.5,
+        )
+        assert withdr["status"] == "ANONYMOUS_WITHDRAWAL_SETTLED"
+        assert withdr["gasless_paymaster_sponsored"] is True
+
+    def test_ai_lsd_multi_avs_restaking_vault(self):
+        """Verifies liquid staking token minting, appreciating exchange rate formula, AI auto-compounding, and unstaking redemption."""
+        from server.services.ai_lsd_restaking_vault import AILSDMultiAVSRestakingVaultEngine
+
+        lsd_vault = AILSDMultiAVSRestakingVaultEngine()
+
+        initial_rate = lsd_vault.get_exchange_rate()
+        assert initial_rate >= 1.0
+
+        # 1. Stake and mint stTOKEN9898
+        pos = lsd_vault.stake_and_mint_lsd("did:token9898:staker_1", 10_000.0)
+        assert pos.position_id.startswith("pos_lsd_")
+        assert pos.st_token_minted > 0
+
+        # 2. AI Auto-Compound & Harvest
+        cmp = lsd_vault.execute_ai_auto_compound_and_rebalance()
+        assert cmp["rebalance_action"] == "OPTIMAL_RISK_ADJUSTED_RESTAKING"
+        assert cmp["new_liquid_exchange_rate"] >= initial_rate
+
+        # 3. Unstake and redeem
+        unstake = lsd_vault.request_unstake_and_burn(pos.position_id, 1000.0)
+        assert unstake["status"] == "UNSTAKED_AND_REDEEMED_SUCCESSFULLY"
+        assert unstake["underlying_tokens_redeemed"] > 0
+
+
+class TestZKRollupRWATreasuryAndAMLSentinel:
+    """Validates Prompt 179 (ZK Rollup Sequencer & Provers), Prompt 180 (RWA Treasury Yield Streaming), Prompt 181 (AI AML Graph Sentinel)."""
+
+    def test_zk_rollup_prover_sequencer(self):
+        """Verifies L2 transaction submission, batch sequencing with DA blob commitment, and L1 settlement finality."""
+        from server.crypto.zk_rollup_prover_sequencer import ZKRollupProverSequencerEngine
+
+        rollup = ZKRollupProverSequencerEngine()
+
+        # 1. Submit L2 transactions
+        tx1 = rollup.submit_l2_transaction("0xalice", "0xbob", 500.0, "USDP")
+        tx2 = rollup.submit_l2_transaction("0xbob", "0xcharlie", 250.0, "TOKEN9898")
+        assert tx1.tx_id.startswith("l2_tx_")
+        assert tx2.tx_id.startswith("l2_tx_")
+
+        # 2. Produce & sequence batch
+        batch = rollup.produce_and_sequence_batch(max_tx_per_batch=10)
+        assert batch.batch_id.startswith("batch_")
+        assert batch.da_blob_commitment_hex.startswith("0xkzg_da_blob_")
+        assert batch.status == "PROVED"
+
+        # 3. Commit to L1
+        commit_res = rollup.commit_batch_to_l1_bridge(batch.batch_id)
+        assert commit_res["settlement_status"] == "L1_FINALITY_CONFIRMED"
+        assert commit_res["l1_settlement_tx_hash"].startswith("0xl1_settlement_")
+
+    def test_rwa_tokenized_treasury_vault(self):
+        """Verifies RWA fractionalization, per-second yield streaming accumulation, and token redemption."""
+        from server.services.rwa_tokenized_treasury_vault import RWATokenizedTreasuryVaultEngine
+
+        rwa = RWATokenizedTreasuryVaultEngine()
+
+        # 1. Subscribe to T-Bill RWA
+        pos = rwa.subscribe_and_tokenize_rwa("did:token9898:investor_1", "rwa_tbill_3m_2026", 50_000.0)
+        assert pos.position_id.startswith("pos_rwa_")
+        assert pos.tokenized_shares_amount == 50_000.0
+
+        # 2. Stream and harvest yield
+        harvest = rwa.stream_and_harvest_accrued_yield(pos.position_id)
+        assert harvest["proof_of_reserve_valid"] is True
+        assert harvest["harvested_yield_usdp"] > 0
+
+        # 3. Redeem RWA tokens
+        redemption = rwa.redeem_rwa_tokens(pos.position_id, 10_000.0)
+        assert redemption["status"] == "RWA_LIQUIDITY_REDEMPTION_SETTLED"
+        assert redemption["total_payout_usdp"] >= 10_000.0
+
+    def test_ai_aml_graph_anomaly_sentinel(self):
+        """Verifies graph anomaly risk scoring, OFAC sanctions blacklist detection, structuring alerts, and autonomous circuit breaker quarantine."""
+        from server.services.ai_aml_graph_anomaly_sentinel import AIAMLGraphAnomalySentinelEngine
+
+        aml = AIAMLGraphAnomalySentinelEngine()
+
+        # 1. Clean transaction
+        clean_rep = aml.analyze_transaction_risk("0xalice_clean", "0xbob_clean", 250.0)
+        assert clean_rep.risk_tier == "LOW"
+        assert clean_rep.is_quarantined is False
+        assert clean_rep.recommended_action == "ALLOW_AUTOMATIC_SETTLEMENT"
+
+        # 2. Sanctioned transaction
+        sanctioned_rep = aml.analyze_transaction_risk("0xlazarus_group_flagged_wallet", "0xvictim_wallet", 500_000.0)
+        assert sanctioned_rep.risk_tier == "CRITICAL_QUARANTINE"
+        assert sanctioned_rep.is_quarantined is True
+        assert sanctioned_rep.recommended_action == "AUTONOMOUS_CIRCUIT_BREAKER_FREEZE"
+
+        # 3. Structuring transaction
+        smurf_rep = aml.analyze_transaction_risk("0xsmurf_sender", "0xsmurf_rcv", 9500.0, recent_tx_count_1h=5)
+        assert "SUSPICIOUS_STRUCTURING_SMURFING_PATTERN" in smurf_rep.detected_heuristics
+        assert smurf_rep.risk_score > 40.0
+
+
+class TestOracleAMMAndDAO:
+    """Validates Prompt 182 (Post-Quantum Oracle Network), Prompt 183 (Dynamic Concentrated AMM & IL Protection), Prompt 184 (DAO Quadratic & Conviction Voting)."""
+
+    def test_post_quantum_oracle_network(self):
+        """Verifies multi-source oracle price aggregation, median/VWAP computation, and ML-DSA-87 threshold signature verification."""
+        from server.crypto.post_quantum_oracle_network import PostQuantumOracleNetworkEngine
+
+        oracle = PostQuantumOracleNetworkEngine()
+
+        prices = [2.50, 2.52, 2.48, 2.51, 2.505]
+        volumes = [10000.0, 15000.0, 8000.0, 12000.0, 9000.0]
+
+        tick = oracle.submit_and_aggregate_oracle_feed("TOKEN9898/USDP", prices, volumes)
+        assert tick.tick_id.startswith("tick_")
+        assert tick.asset_pair == "TOKEN9898/USDP"
+        assert tick.median_price == 2.505
+        assert tick.threshold_signature_hex.startswith("0xpq_don_sig_mldsa87_")
+        assert tick.participating_nodes_count >= 4
+
+    def test_dynamic_amm_concentrated_liquidity(self):
+        """Verifies concentrated tick liquidity minting, dynamic fee swap execution, and delta-neutral IL hedging."""
+        from server.services.dynamic_amm_concentrated_liquidity import DynamicAMMConcentratedLiquidityEngine
+
+        amm = DynamicAMMConcentratedLiquidityEngine()
+
+        # 1. Mint concentrated liquidity
+        pos = amm.mint_concentrated_liquidity(
+            owner_did="did:token9898:lp_user",
+            pool_id="pool_token9898_usdp",
+            lower_price=2.00,
+            upper_price=3.00,
+            token_a_amount=10_000.0,
+            token_b_amount=25_000.0,
+        )
+        assert pos.position_id.startswith("pos_cl_")
+        assert pos.liquidity_units > 0
+
+        # 2. Execute swap with dynamic fee
+        swap = amm.execute_concentrated_swap(
+            pool_id="pool_token9898_usdp",
+            input_token="USDP",
+            amount_in=5000.0,
+        )
+        assert swap["status"] == "SWAP_EXECUTED_OPTIMAL_EXECUTION"
+        assert swap["amount_out"] > 0
+        assert swap["swap_tx_hash"].startswith("0xcl_swap_")
+
+        # 3. IL protection rebalance
+        hedge = amm.execute_il_hedging_rebalance(pos.position_id)
+        assert hedge["protection_mode"] == "DELTA_NEUTRAL_SYNTHETIC_SHIELD_ACTIVE"
+        assert hedge["injected_il_protection_usd"] > 0
+
+    def test_dao_quadratic_conviction_voting(self):
+        """Verifies quadratic voting formula (sqrt(tokens)), conviction weight accumulation, and timelocked on-chain execution."""
+        from server.services.dao_quadratic_conviction_voting import DAOQuadraticConvictionVotingEngine
+
+        dao = DAOQuadraticConvictionVotingEngine()
+
+        # 1. Create proposal
+        prop = dao.create_proposal(
+            proposer_did="did:token9898:member_1",
+            title="PIP-102: Expand Global Oracle Node Operators",
+            description="Onboard 4 new regional institutional post-quantum validator feeder nodes.",
+            target_contract="0xoracle_registry_contract",
+        )
+        assert prop.proposal_id.startswith("prop_")
+        assert prop.status == "ACTIVE"
+
+        # 2. Cast quadratic vote: 10,000 tokens staked -> sqrt(10,000) = 100 votes
+        vote = dao.cast_quadratic_vote(
+            proposal_id=prop.proposal_id,
+            voter_did="did:token9898:voter_whale",
+            tokens_staked=10_000.0,
+            support=True,
+        )
+        assert vote.quadratic_weight == 100.0
+        assert prop.quadratic_votes_for == 100.0
+        assert prop.conviction_score > 0
+
+        # 3. Execute pre-passed timelocked genesis proposal
+        exec_res = dao.execute_timelocked_proposal("prop_genesis_01")
+        assert exec_res["status"] == "PROPOSAL_ON_CHAIN_EXECUTED"
+        assert exec_res["execution_tx_hash"].startswith("0xdao_exec_")
+
+
+class TestQRNGCCIPAndCarbonOracle:
+    """Validates Prompt 185 (Quantum Random Beacon & VDF), Prompt 186 (Cross-Chain CCIP Relayer & RMN), Prompt 187 (AI Clean Grid & Carbon Credit Oracle)."""
+
+    def test_qrng_vdf_random_beacon(self):
+        """Verifies true quantum entropy injection, Wesolowski VDF proof generation and O(log T) verification, and unbiasable integer drawing."""
+        from server.crypto.qrng_vdf_random_beacon import QRNGVDFRandomBeaconEngine
+
+        beacon = QRNGVDFRandomBeaconEngine()
+
+        # 1. Generate next round with VDF delay
+        round_2 = beacon.generate_next_beacon_round(vdf_iterations=2000)
+        assert round_2.round_number == 2
+        assert round_2.final_random_seed_hex.startswith("0xbeacon_seed_")
+        assert round_2.vdf_proof_pi.startswith("0xwesolowski_pi_")
+        assert round_2.signature_hex.startswith("0xmldsa87_sig_")
+
+        # 2. Verify VDF proof
+        assert beacon.verify_vdf_proof(round_2.round_number) is True
+
+        # 3. Unbiasable random drawing
+        rand_val = beacon.draw_random_integer(round_2.round_number, 1, 100)
+        assert 1 <= rand_val <= 100
+
+    def test_cross_chain_ccip_relayer(self):
+        """Verifies CCIP multi-consensus message dispatch, RMN out-of-band validation, and destination execution settlement."""
+        from server.services.cross_chain_ccip_relayer import CrossChainCCIPRelayerEngine
+
+        ccip = CrossChainCCIPRelayerEngine()
+
+        # 1. Dispatch transfer
+        msg = ccip.dispatch_cross_chain_transfer(
+            source_chain="ETHEREUM_MAINNET",
+            destination_chain="TOKEN9898_NATIVE_L2",
+            sender_address="0xeth_sender",
+            receiver_address="0xtoken9898_rcv",
+            token_symbol="USDP",
+            amount=50_000.0,
+        )
+        assert msg.message_id.startswith("ccip_msg_")
+        assert msg.status == "RMN_VALIDATED"
+        assert msg.rmn_approval_signature.startswith("0xrmn_sec_sig_")
+
+        # 2. Execute on destination
+        settle = ccip.execute_destination_settlement(msg.message_id)
+        assert settle["status"] == "CROSS_CHAIN_EXECUTION_COMPLETED"
+        assert settle["destination_tx_hash"].startswith("0xccip_dest_settle_")
+
+    def test_ai_energy_grid_carbon_oracle(self):
+        """Verifies IoT smart meter generation ingestion, dynamic CO2 avoidance metric calculation, carbon credit token minting, and retirement."""
+        from server.services.ai_energy_grid_carbon_oracle import AIEnergyGridCarbonOracleEngine
+
+        grid = AIEnergyGridCarbonOracleEngine()
+
+        # 1. Ingest clean energy generation
+        ingest = grid.ingest_clean_energy_generation("facility_solar_bavaria_01", 10_000.0)
+        assert ingest["co2_offset_kg"] == 3850.0  # 10000 * 0.385
+        assert ingest["carbon_credit_tokens_minted"] == 3.85
+        assert ingest["grid_oracle_attestation"] == "VERIFIED_GOLD_STANDARD_COMPLIANT"
+
+        # 2. Retire carbon credits
+        retire = grid.retire_carbon_credits("did:token9898:esg_fund", 2.5)
+        assert retire.retirement_id.startswith("retire_")
+        assert retire.tons_co2_retired == 2.5
+        assert retire.certificate_hash.startswith("0xcarbon_cert_")
+
+
+class TestHFTCDPAndSovereignPassport:
+    """Validates Prompt 188 (Post-Quantum State Channel HFT), Prompt 189 (AI Risk CDP Stablecoin Synthetics), Prompt 190 (Sovereign Interoperable Identity Passport)."""
+
+    def test_post_quantum_state_channel_hft(self):
+        """Verifies duplex state channel opening, sub-millisecond off-chain micro-transfers with sequence updates, and cooperative on-chain closure."""
+        from server.crypto.post_quantum_state_channel_hft import PostQuantumStateChannelHFTEngine
+
+        engine = PostQuantumStateChannelHFTEngine()
+
+        # 1. Open channel
+        channel = engine.open_state_channel(
+            party_a_did="did:token9898:market_maker_a",
+            party_b_did="did:token9898:trader_b",
+            initial_deposit_a=10_000.0,
+            initial_deposit_b=5_000.0,
+            token_symbol="USDP",
+        )
+        assert channel.channel_id.startswith("channel_")
+        assert channel.latest_state.sequence_number == 0
+
+        # 2. Execute off-chain micro-transfer A -> B: 500 USDP
+        update1 = engine.execute_offchain_hft_transfer(channel.channel_id, amount=500.0, sender_is_party_a=True)
+        assert update1.sequence_number == 1
+        assert update1.balance_party_a == 9500.0
+        assert update1.balance_party_b == 5500.0
+        assert update1.signature_party_a.startswith("0xmldsa87_sig_a_")
+
+        # 3. Cooperatively close channel
+        close_res = engine.close_state_channel_cooperatively(channel.channel_id)
+        assert close_res["status"] == "CHANNEL_COOPERATIVELY_SETTLED_ON_CHAIN"
+        assert close_res["payout_party_a"] == 9500.0
+        assert close_res["payout_party_b"] == 5500.0
+
+    def test_ai_risk_cdp_stablecoin_synthetics(self):
+        """Verifies multi-collateral CDP vault creation, synthetic USDP debt minting, health ratio evaluation, and liquidation."""
+        from server.services.ai_risk_cdp_stablecoin_synthetics import AIRiskCDPStablecoinSyntheticsEngine
+
+        cdp = AIRiskCDPStablecoinSyntheticsEngine()
+
+        # 1. Open vault & mint USDP: deposit 10,000 TOKEN9898 ($25,000 USD val) -> mint 10,000 USDP (CR = 250% > 160%)
+        vault = cdp.open_vault_and_mint_usdp(
+            owner_did="did:token9898:borrower_1",
+            collateral_symbol="TOKEN9898",
+            deposit_amount=10_000.0,
+            mint_amount_usdp=10_000.0,
+        )
+        assert vault.vault_id.startswith("vault_")
+        assert vault.minted_debt_usdp == 10_000.0
+
+        # 2. Check health ratio
+        health = cdp.check_vault_health_and_ratio(vault.vault_id)
+        assert health["current_collateral_ratio"] == 2.5
+        assert health["is_liquidatable"] is False
+
+        # 3. Drop collateral price simulation to force underwater
+        cdp.collaterals["TOKEN9898"].oracle_price_usd = 1.20  # Value becomes $12,000 -> CR = 120% < 160%
+        health_underwater = cdp.check_vault_health_and_ratio(vault.vault_id)
+        assert health_underwater["is_liquidatable"] is True
+
+        # 4. Liquidate underwater vault
+        liq = cdp.execute_dutch_auction_liquidation(vault.vault_id)
+        assert liq["status"] == "VAULT_LIQUIDATED_DEBT_REPAID"
+
+        # Restore benchmark price
+        cdp.collaterals["TOKEN9898"].oracle_price_usd = 2.50
+
+    def test_sovereign_interoperable_identity_passport(self):
+        """Verifies eIDAS 2.0 / ICAO compliant sovereign passport issuance, ZK biometric proof binding, and selective disclosure verification."""
+        from server.services.sovereign_interoperable_identity_passport import SovereignInteroperableIdentityPassportEngine
+
+        passport_engine = SovereignInteroperableIdentityPassportEngine()
+
+        # 1. Issue passport
+        cred = passport_engine.issue_sovereign_passport(
+            holder_did="did:token9898:citizen_01",
+            jurisdiction="EU_MICA",
+            kyc_level="TIER_2_ENHANCED",
+            biometric_raw_entropy="face_mesh_landmark_hash_sample",
+            attributes={
+                "age_over_21": True,
+                "residency_country": "DE",
+                "is_politically_exposed": False,
+                "aml_sanctions_clear": True,
+            },
+        )
+        assert cred.passport_id.startswith("pass_")
+        assert cred.zk_biometric_proof_hash.startswith("0xzk_bio_proof_")
+
+        # 2. Verify selective disclosure without revealing country or full profile
+        res_age = passport_engine.verify_selective_disclosure_zk_proof(cred.passport_id, "age_over_21", True)
+        assert res_age["is_valid"] is True
+        assert res_age["predicate_satisfied"] is True
+        assert res_age["zk_verification_receipt"].startswith("0xzk_verify_receipt_")
+
+        # 3. Verify failed predicate
+        res_fail = passport_engine.verify_selective_disclosure_zk_proof(cred.passport_id, "is_politically_exposed", True)
+        assert res_fail["is_valid"] is False
+
+
+
+
+
+
+
+
 
 
 
