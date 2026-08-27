@@ -66,6 +66,8 @@ All components are covered by unit and integration tests inside `tests/test_toke
 
 
 ##White Paper##
+copy paste to AI Mail Me Please in your language at 
+**Owner / Email**: kariyajignesh@yahoo.com
 અહીં "ક્વોન્ટમ પ્રૂફ ઓફ એન્ટેંગલમેન્ટ (PoE) કોન્સેન્સસ" નું ગુજરાતી ભાષામાં ઊંડાણપૂર્વકનું વર્ણન રજૂ કર્યું છે. આ ખ્યાલ ક્વોન્ટમ ભૌતિકશાસ્ત્ર અને બ્લોકચેન ટેક્નોલોજીના સંગમ પર આધારિત છે, જે વેલિડેટર નેતાની પસંદગીને અતિ સુરક્ષિત અને યાદૃચ્છિક બનાવે છે.
 
 ક્વોન્ટમ પ્રૂફ ઓફ એન્ટેંગલમેન્ટ (PoE) કોન્સેન્સસ: એક ઊંડાણપૂર્વકનું વિશ્લેષણ (ગુજરાતીમાં)
