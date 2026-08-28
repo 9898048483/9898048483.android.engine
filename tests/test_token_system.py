@@ -10154,7 +10154,167 @@ class TestMineralWaterSWFClearing:
         # 2. Telemetry
         tel = engine.get_swf_telemetry()
         assert tel["active_portfolio_positions"] >= 2
+
         assert tel["total_trade_executions"] >= 1
+
+
+class TestSpaceDebrisGenomicMobility:
+    """Validates Prompt 248 (Autonomous Space Debris De-orbiting & Orbital Sustainability Clearing), Prompt 249 (Autonomous Sovereign Healthcare Genomic Data Marketplace Clearing), Prompt 250 (Autonomous Sovereign Urban Mobility Congestion Clearing)."""
+
+    def test_autonomous_space_debris_deorbiting_sustainability_clearing(self):
+        from server.services.autonomous_space_debris_deorbiting_sustainability_clearing import AutonomousSpaceDebrisDeorbitingSustainabilityClearingEngine
+        engine = AutonomousSpaceDebrisDeorbitingSustainabilityClearingEngine()
+        obj = engine.register_debris_object(12345, 100.0, 500.0, 0.5)
+        contract = engine.book_adr_contract(obj.object_id, "did:provider", 5000.0)
+        engine.settle_adr_bounty(contract.contract_id)
+        assert engine.total_bounties_paid_usdp >= 5000.0
+        assert obj.is_removed is True
+
+    def test_autonomous_sovereign_genomic_data_marketplace_clearing(self):
+        from server.services.autonomous_sovereign_genomic_data_marketplace_clearing import AutonomousSovereignGenomicDataMarketplaceClearingEngine
+        engine = AutonomousSovereignGenomicDataMarketplaceClearingEngine()
+        cohort = engine.register_genomic_cohort("did:owner", ["CANCER"], 500)
+        contract = engine.lease_genomic_data_access(cohort.cohort_id, "did:researcher", 10000.0)
+        engine.settle_genomic_lease(contract.contract_id)
+        assert engine.total_lease_fees_usdp >= 10000.0
+        assert contract.is_executed is True
+
+    def test_autonomous_sovereign_urban_mobility_congestion_clearing(self):
+        from server.services.autonomous_sovereign_urban_mobility_congestion_clearing import AutonomousSovereignUrbanMobilityCongestionClearingEngine
+        engine = AutonomousSovereignUrbanMobilityCongestionClearingEngine()
+        zone = engine.register_congestion_zone("TestZone", 0.1)
+        contract = engine.book_mobility_access(zone.zone_id, "did:user", 10.0)
+        engine.settle_mobility_fee(contract.contract_id)
+        assert engine.total_congestion_fees_usdp >= 1.0
+        assert contract.is_settled is True
+
+
+class TestAgriMaritimeEduClearing:
+    """Validates Prompt 251 (Autonomous Sovereign Agricultural Yield & Soil Health Credit Clearing), Prompt 252 (Autonomous Sovereign Maritime Logistics & Port Capacity Clearing), Prompt 253 (Autonomous Sovereign Educational Credential & Lifelong Learning Skill-Credit Clearing)."""
+
+    def test_autonomous_sovereign_agricultural_yield_clearing(self):
+        from server.services.autonomous_sovereign_agricultural_yield_clearing import AutonomousSovereignAgriculturalYieldClearingEngine
+        engine = AutonomousSovereignAgriculturalYieldClearingEngine()
+        lot = engine.register_harvest_lot("did:farmer", "WHEAT", "KS", 100.0)
+        contract = engine.create_yield_contract(lot.lot_id, "did:buyer", 300.0)
+        engine.settle_yield_contract(contract.contract_id)
+        assert engine.total_yield_cleared_volume_usdp >= 30000.0
+        assert contract.is_delivered is True
+
+    def test_autonomous_sovereign_maritime_logistics_clearing(self):
+        from server.services.autonomous_sovereign_maritime_logistics_clearing import AutonomousSovereignMaritimeLogisticsClearingEngine
+        engine = AutonomousSovereignMaritimeLogisticsClearingEngine()
+        berth = engine.register_berth("TestBerth", 1000)
+        contract = engine.book_cargo_capacity(berth.berth_id, "did:shipper", 100, 50.0)
+        engine.settle_maritime_contract(contract.contract_id)
+        assert engine.total_maritime_cleared_volume_usdp >= 5000.0
+        assert contract.is_fulfilled is True
+
+    def test_autonomous_sovereign_educational_credential_clearing(self):
+        from server.services.autonomous_sovereign_educational_credential_clearing import AutonomousSovereignEducationalCredentialClearingEngine
+        engine = AutonomousSovereignEducationalCredentialClearingEngine()
+        cred = engine.issue_credential("did:issuer", "did:student", "CERT_TEST")
+        contract = engine.book_placement_contract(cred.credential_id, "did:employer", 5000.0)
+        engine.settle_placement(contract.contract_id)
+        assert engine.total_placement_fees_usdp >= 5000.0
+        assert contract.is_settled is True
+
+
+class TestGridHealthFinanceClearing:
+    """Validates Prompt 254 (Autonomous Sovereign Renewable Energy Grid Balancing & Storage Clearing), Prompt 255 (Autonomous Sovereign Healthcare Infrastructure & Clinical Resource Clearing), Prompt 256 (Autonomous Sovereign Infrastructure Project Finance & Construction Clearing)."""
+
+    def test_autonomous_sovereign_renewable_energy_grid_balancing_clearing(self):
+        from server.services.autonomous_sovereign_renewable_energy_grid_balancing_clearing import AutonomousSovereignRenewableEnergyGridBalancingClearingEngine
+        engine = AutonomousSovereignRenewableEnergyGridBalancingClearingEngine()
+        fac = engine.register_facility("TestBESS", 100.0, 50.0)
+        contract = engine.book_storage_contract(fac.facility_id, "did:user", 10.0, 20.0)
+        engine.settle_contract(contract.contract_id)
+        assert engine.total_cleared_volume_usdp >= 200.0
+        assert contract.is_settled is True
+
+    def test_autonomous_sovereign_healthcare_infrastructure_clearing(self):
+        from server.services.autonomous_sovereign_healthcare_infrastructure_clearing import AutonomousSovereignHealthcareInfrastructureClearingEngine
+        engine = AutonomousSovereignHealthcareInfrastructureClearingEngine()
+        fac = engine.register_facility("TestHosp", 100)
+        contract = engine.book_resource_contract(fac.facility_id, "did:provider", "SURGERY", 5000.0)
+        engine.settle_contract(contract.contract_id)
+        assert engine.total_cleared_volume_usdp >= 5000.0
+        assert contract.is_settled is True
+
+    def test_autonomous_sovereign_infrastructure_project_finance_clearing(self):
+        from server.services.autonomous_sovereign_infrastructure_project_finance_clearing import AutonomousSovereignInfrastructureProjectFinanceClearingEngine
+        engine = AutonomousSovereignInfrastructureProjectFinanceClearingEngine()
+        proj = engine.register_project("TestProj", 1000000.0)
+        contract = engine.book_milestone_contract(proj.project_id, "did:investor", "MILESTONE_1", 100000.0)
+        engine.settle_contract(contract.contract_id)
+        assert engine.total_cleared_volume_usdp >= 100000.0
+        assert contract.is_settled is True
+
+
+class TestWasteCyberHeritageClearing:
+    """Validates Prompt 257 (Autonomous Sovereign Waste Management & Circular Economy Clearing), Prompt 258 (Autonomous Sovereign Cybersecurity Threat Intelligence & Incident Response Clearing), Prompt 259 (Autonomous Sovereign Cultural Heritage & Intellectual Property Rights Clearing)."""
+
+    def test_autonomous_sovereign_waste_management_circular_economy_clearing(self):
+        from server.services.autonomous_sovereign_waste_management_circular_economy_clearing import AutonomousSovereignWasteManagementCircularEconomyClearingEngine
+        engine = AutonomousSovereignWasteManagementCircularEconomyClearingEngine()
+        lot = engine.register_waste_lot("PLASTIC", 10.0)
+        contract = engine.book_circular_contract(lot.lot_id, 100.0)
+        engine.settle_contract(contract.contract_id)
+        assert engine.total_cleared_volume_usdp >= 1000.0
+        assert contract.is_settled is True
+
+    def test_autonomous_sovereign_cybersecurity_threat_clearing(self):
+        from server.services.autonomous_sovereign_cybersecurity_threat_clearing import AutonomousSovereignCybersecurityThreatClearingEngine
+        engine = AutonomousSovereignCybersecurityThreatClearingEngine()
+        advisory = engine.register_advisory("CRITICAL")
+        contract = engine.book_ir_contract(advisory.advisory_id, 5000.0)
+        engine.settle_contract(contract.contract_id)
+        assert engine.total_cleared_volume_usdp >= 5000.0
+        assert contract.is_settled is True
+
+
+    def test_autonomous_sovereign_cultural_heritage_ip_clearing(self):
+        from server.services.autonomous_sovereign_cultural_heritage_ip_clearing import AutonomousSovereignCulturalHeritageIPClearingEngine
+        engine = AutonomousSovereignCulturalHeritageIPClearingEngine()
+        asset = engine.register_asset("TestArt")
+        contract = engine.book_royalty_contract(asset.asset_id, 1000.0)
+        engine.settle_contract(contract.contract_id)
+        assert engine.total_cleared_volume_usdp >= 1000.0
+        assert contract.is_settled is True
+
+
+class TestDisasterAgriSafetyClearing:
+    """Validates Prompt 260 (Autonomous Sovereign Disaster Resilience & Emergency Response Clearing), Prompt 261 (Autonomous Sovereign Precision Agriculture & Smart Farming Clearing), Prompt 262 (Autonomous Sovereign Urban Public Safety & Emergency Response Clearing)."""
+
+    def test_autonomous_sovereign_disaster_resilience_clearing(self):
+        from server.services.autonomous_sovereign_disaster_resilience_clearing import AutonomousSovereignDisasterResilienceClearingEngine
+        engine = AutonomousSovereignDisasterResilienceClearingEngine()
+        res = engine.register_resource("MEDICAL", 100.0)
+        contract = engine.book_emergency_contract(res.resource_id, "did:responder", 5000.0)
+        engine.settle_contract(contract.contract_id)
+        assert engine.total_cleared_volume_usdp >= 5000.0
+        assert contract.is_settled is True
+
+    def test_autonomous_sovereign_precision_agriculture_clearing(self):
+        from server.services.autonomous_sovereign_precision_agriculture_clearing import AutonomousSovereignPrecisionAgricultureClearingEngine
+        engine = AutonomousSovereignPrecisionAgricultureClearingEngine()
+        res = engine.register_resource("IRRIGATION", 500.0)
+        contract = engine.book_agri_contract(res.resource_id, "did:farmer", 1000.0)
+        engine.settle_contract(contract.contract_id)
+        assert engine.total_cleared_volume_usdp >= 1000.0
+        assert contract.is_settled is True
+
+    def test_autonomous_sovereign_urban_public_safety_clearing(self):
+        from server.services.autonomous_sovereign_urban_public_safety_clearing import AutonomousSovereignUrbanPublicSafetyClearingEngine
+        engine = AutonomousSovereignUrbanPublicSafetyClearingEngine()
+        res = engine.register_resource("RESPONSE_UNIT")
+        contract = engine.book_safety_contract(res.resource_id, "did:provider", 2000.0)
+        engine.settle_contract(contract.contract_id)
+        assert engine.total_cleared_volume_usdp >= 2000.0
+        assert contract.is_settled is True
+
+
+
 
 
 
