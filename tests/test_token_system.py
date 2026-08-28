@@ -10055,6 +10055,109 @@ class TestQKDFabAndSovereignDebt:
         assert tel["total_debt_successfully_restructured_usdp"] >= 2_000_000_000.0
 
 
+class TestMineralWaterSWFClearing:
+    """Validates Prompt 245 (Autonomous Sovereign Critical Mineral Supply Chain Clearing), Prompt 246 (Autonomous Desalination Water Grid Rights Clearing), Prompt 247 (Autonomous Sovereign Wealth Fund Portfolio Clearing)."""
+
+    def test_autonomous_sovereign_critical_mineral_supply_chain_clearing(self):
+        """Verifies mine lot registration, offtake contract booking, and EU battery passport issuance."""
+        from server.services.autonomous_sovereign_critical_mineral_supply_chain_clearing import AutonomousSovereignCriticalMineralSupplyChainClearingEngine
+
+        engine = AutonomousSovereignCriticalMineralSupplyChainClearingEngine()
+
+        # 1. Register mine mineral lot
+        lot = engine.register_mine_mineral_lot(
+            operator_did="did:token9898:lithium_mines_western_australia",
+            mineral_type="LITHIUM_HYDROXIDE_BATTERY_GRADE",
+            country="AUS",
+            weight_tons=500.0,
+            purity_pct=99.92,
+            carbon_kg_per_kg=6.4,
+            raw_spectrometry_data="xrf_assay_99812",
+        )
+        assert lot.lot_id.startswith("lot_")
+
+        # 2. Book offtake contract
+        contract = engine.create_mineral_offtake_contract(
+            lot_id=lot.lot_id,
+            buyer_oem_did="did:token9898:global_ev_oem",
+            price_per_ton_usdp=25_000.0,
+            destination_gigafactory="gigafactory_germany_01",
+        )
+        assert contract.contract_id.startswith("contract_")
+        assert contract.total_committed_value_usdp == 500.0 * 25_000.0
+
+        # 3. Issue passport and settle
+        receipt = engine.issue_eu_battery_passport_and_settle(contract.contract_id)
+        assert receipt.passport_id.startswith("passport_")
+        assert receipt.refinery_pq_signature.startswith("0xmldsa87_")
+        assert contract.is_delivered is True
+
+        # 4. Telemetry
+        tel = engine.get_critical_mineral_telemetry()
+        assert tel["registered_mineral_lots"] >= 3
+        assert tel["total_metric_tons_cleared"] >= 500.0
+
+    def test_autonomous_desalination_water_grid_rights_clearing(self):
+        """Verifies plant registration, water contract creation, and SCADA flow settlement."""
+        from server.services.autonomous_desalination_water_grid_rights_clearing import AutonomousDesalinationWaterGridRightsClearingEngine
+
+        engine = AutonomousDesalinationWaterGridRightsClearingEngine()
+
+        # 1. Register desalination plant
+        plant = engine.register_desalination_plant(
+            name="GIFT City Coastal SWRO Mega-Facility",
+            operator_did="did:token9898:gujarat_water_infrastructure",
+            capacity_m3=400_000.0,
+            specific_energy_kwh=2.65,
+            tds_ppm=220.0,
+            tariff_per_m3=0.72,
+        )
+        assert plant.plant_id.startswith("plant_")
+
+        # 2. Create water offtake contract
+        contract = engine.create_water_offtake_contract(
+            plant_id=plant.plant_id,
+            offtaker_did="did:token9898:municipal_water_board",
+            volume_m3=1000.0,
+            pipeline_node="node_gift_city_substation_01",
+        )
+        assert contract.contract_id.startswith("wcontract_")
+
+        # 3. Stream delivery settlement
+        receipt = engine.stream_water_delivery_settlement(contract.contract_id, 200.0)
+        assert receipt.settlement_id.startswith("wsettle_")
+        assert receipt.amount_settled_usdp == 200.0 * 0.72
+        assert receipt.water_authority_pq_signature.startswith("0xmldsa87_")
+
+        # 4. Telemetry
+        tel = engine.get_water_grid_telemetry()
+        assert tel["active_desalination_plants"] >= 3
+        assert tel["total_water_volume_cleared_usdp"] >= 144.0
+
+    def test_autonomous_sovereign_wealth_fund_clearing(self):
+        """Verifies SWF portfolio position registration and atomic trade execution."""
+        from server.services.autonomous_sovereign_wealth_fund_clearing import AutonomousSovereignWealthFundClearingEngine
+
+        engine = AutonomousSovereignWealthFundClearingEngine()
+
+        # 1. Execute portfolio rebalance trade
+        trade = engine.execute_portfolio_rebalance_trade(
+            from_asset_id="USDP_LIQUIDITY",
+            to_asset_id="RWA_INFRA_01",
+            amount_usdp=50_000_000.0,
+            executed_price=1.0,
+        )
+        assert trade.trade_id.startswith("trade_")
+        assert trade.zk_trade_integrity_proof_hash.startswith("0xzk_")
+        assert trade.proposer_pq_signature.startswith("0xmldsa87_")
+
+        # 2. Telemetry
+        tel = engine.get_swf_telemetry()
+        assert tel["active_portfolio_positions"] >= 2
+        assert tel["total_trade_executions"] >= 1
+
+
+
 
 
 
