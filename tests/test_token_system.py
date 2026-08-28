@@ -8932,6 +8932,1139 @@ class TestAIStreamDePINSovereignTreasury:
         assert sweep.mpc_multisig_quorum_proof.startswith("0xmldsa87_5of9_mpc_quorum_")
 
 
+class TestZKDarkPoolAICourtSocialRecovery:
+    """Validates Prompt 216 (ZK Dark Pool & Blind Batch Auction), Prompt 217 (Autonomous AI DAO Dispute Resolution Court), Prompt 218 (Programmable Passkey Account Abstraction & Social Recovery)."""
+
+    def test_zk_dark_pool_blind_batch_auction(self):
+        """Verifies Pedersen blind order submissions, uniform clearing price matching, and ZK batch execution proofs."""
+        from server.services.zk_dark_pool_blind_batch_auction import ZKDarkPoolBlindBatchAuctionEngine
+
+        dark_pool = ZKDarkPoolBlindBatchAuctionEngine()
+
+        # 1. Submit blind BUY order
+        buy_order = dark_pool.submit_blind_order(
+            trader_did="did:token9898:hedge_fund_alpha",
+            pair="TOKEN9898/USDP",
+            order_type="BUY",
+            size_tokens=50_000.0,
+            limit_price_usdp=2.44,
+            escrow_amount_usdp=122_000.0,
+        )
+        assert buy_order.order_id.startswith("dark_order_")
+        assert buy_order.order_commitment_hex.startswith("0xpedersen_cm_")
+
+        # 2. Submit blind SELL order
+        sell_order = dark_pool.submit_blind_order(
+            trader_did="did:token9898:market_maker_beta",
+            pair="TOKEN9898/USDP",
+            order_type="SELL",
+            size_tokens=50_000.0,
+            limit_price_usdp=2.40,
+            escrow_amount_usdp=50_000.0,
+        )
+        assert sell_order.order_id.startswith("dark_order_")
+
+        # 3. Execute uniform price batch clearing
+        round_res = dark_pool.execute_blind_batch_clearing("TOKEN9898/USDP")
+        assert round_res.round_id.startswith("batch_round_")
+        assert round_res.uniform_clearing_price_usdp > 0
+        assert round_res.total_matched_volume_tokens > 0
+        assert round_res.zk_clearing_proof_hex.startswith("0xzk_uniform_clearing_proof_")
+        assert round_res.pq_settlement_signature.startswith("0xmldsa87_dark_settle_sig_")
+
+    def test_autonomous_ai_dao_dispute_resolution_court(self):
+        """Verifies dispute case filing, multi-model jurist verdicts, and cryptographic court decree adjudication."""
+        from server.services.autonomous_ai_dao_dispute_resolution_court import AutonomousAIDAODisputeResolutionCourtEngine
+
+        court = AutonomousAIDAODisputeResolutionCourtEngine()
+
+        # 1. File new dispute
+        case = court.file_dispute_case(
+            plaintiff_did="did:token9898:liquidity_provider_01",
+            defendant_did="did:token9898:sor_arbitrageur_02",
+            disputed_amount_usdp=40_000.0,
+            claim_category="ORACLE_SLIPPAGE_DISPUTE",
+            evidence_uri="ipfs://bafybeidisputeevidence9898",
+        )
+        assert case.case_id.startswith("case_")
+        assert case.evidence_merkle_root.startswith("0xmerkle_evidence_")
+
+        # 2. Submit AI Jurist verdicts (Quorum >= 3)
+        court.submit_jurist_verdict(case.case_id, "jurist_1", "Gemini-3.7-Pro", "FAVOR_PLAINTIFF", 0.95, "Oracle delay confirmed.")
+        court.submit_jurist_verdict(case.case_id, "jurist_2", "Claude-3.5-Sonnet", "FAVOR_PLAINTIFF", 0.92, "Transaction log anomaly.")
+        court.submit_jurist_verdict(case.case_id, "jurist_3", "DeepSeek-V3", "FAVOR_PLAINTIFF", 0.97, "Invariant deviation verified.")
+
+        # 3. Adjudicate binding verdict
+        ruling = court.adjudicate_case_verdict(case.case_id)
+        assert ruling.ruling_id.startswith("ruling_")
+        assert ruling.final_verdict == "FAVOR_PLAINTIFF"
+        assert ruling.awarded_amount_plaintiff_usdp == 40_000.0
+        assert ruling.court_enforcement_hash.startswith("0xai_court_decree_")
+
+    def test_programmable_biometric_recovery_social_guardians(self):
+        """Verifies ERC-4337 smart account creation, WebAuthn user operations, and threshold guardian recovery."""
+        from server.services.programmable_biometric_recovery_social_guardians import ProgrammableBiometricRecoverySocialGuardiansEngine
+
+        aa_engine = ProgrammableBiometricRecoverySocialGuardiansEngine()
+
+        # 1. Deploy smart account
+        guardians = ["0xg1", "0xg2", "0xg3"]
+        acc = aa_engine.create_smart_account(
+            owner_did="did:token9898:vitalik_fan",
+            passkey_public_key_hex="0xinitial_faceid_key_hex",
+            guardian_threshold_k=2,
+            guardian_hashes=guardians,
+            daily_limit_usdp=15_000.0,
+        )
+        assert acc.account_address.startswith("0xaa_wallet_")
+        assert acc.guardian_threshold_k == 2
+
+        # 2. Execute WebAuthn gasless UserOp
+        user_op = aa_engine.execute_user_op(
+            account_address=acc.account_address,
+            transfer_amount_usdp=2_500.0,
+            recipient_address="0xrecipient_vault",
+            webauthn_signature_hex="0xwebauthn_passkey_sig",
+        )
+        assert user_op["status"] == "EXECUTED_VIA_WEBAUTHN_PAYMASTER"
+        assert user_op["remaining_daily_limit_usdp"] == 12_500.0
+
+        # 3. Initiate social guardian recovery
+        rec_sess = aa_engine.initiate_guardian_recovery(
+            account_address=acc.account_address,
+            new_passkey_hex="0xnew_iphone_faceid_key_hex",
+        )
+        assert rec_sess.session_id.startswith("rec_sess_")
+
+        # Submit 2 of 3 guardian signatures to satisfy threshold
+        res1 = aa_engine.submit_guardian_approval(rec_sess.session_id, "0xguardian_sig_1")
+        assert res1["status"] == "GUARDIAN_SIGNATURE_RECORDED"
+
+        res2 = aa_engine.submit_guardian_approval(rec_sess.session_id, "0xguardian_sig_2")
+        assert res2["status"] == "RECOVERY_SUCCESSFULLY_EXECUTED"
+        assert acc.passkey_public_key_hex == "0xnew_iphone_faceid_key_hex"
+
+
+class TestAIVCMicrogridZKPoL:
+    """Validates Prompt 219 (AI Agent Swarm Venture Capital Vault), Prompt 220 (Autonomous Microgrid P2P Energy Trading), Prompt 221 (zkSNARK Verifiable Solvency & Proof-of-Liabilities)."""
+
+    def test_ai_agent_swarm_venture_capital_vault(self):
+        """Verifies startup proposal submission, AI agent due diligence evaluations, and streaming milestone disbursements."""
+        from server.services.ai_agent_swarm_venture_capital_vault import AIAgentSwarmVentureCapitalVaultEngine
+
+        vc_engine = AIAgentSwarmVentureCapitalVaultEngine()
+
+        # 1. Submit proposal
+        prop = vc_engine.submit_venture_proposal(
+            project_name="Zero-Knowledge Neural Co-Processor",
+            founder_did="did:token9898:ai_chip_architect",
+            target_funding_usdp=400_000.0,
+            equity_pledged_pct=10.0,
+            repo_url="https://github.com/token9898/zk-neural-chip",
+            whitepaper_uri="ipfs://bafybeizkneuralchipv1",
+            milestones=4,
+        )
+        assert prop.proposal_id.startswith("prop_vc_")
+        assert prop.status == "EVALUATING"
+
+        # 2. Submit AI agent evaluations
+        vc_engine.submit_agent_due_diligence(prop.proposal_id, "agent_1", "TECH_AUDITOR", 92.0, 0.95, "Sound architecture.")
+        vc_engine.submit_agent_due_diligence(prop.proposal_id, "agent_2", "FINANCIAL_MODELER", 88.0, 0.90, "Good unit economics.")
+        vc_engine.submit_agent_due_diligence(prop.proposal_id, "agent_3", "GROWTH_ANALYST", 90.0, 0.92, "High demand in edge AI.")
+
+        # 3. Finalize approval and verify first tranche payout
+        res = vc_engine.finalize_venture_approval(prop.proposal_id)
+        assert res["status"] == "APPROVED_STREAMING"
+        assert prop.milestones_unlocked == 1
+        assert prop.streamed_capital_usdp == 100_000.0
+
+        # 4. Unlock milestone 2
+        rec = vc_engine.unlock_next_milestone(prop.proposal_id, 2, "0xzk_tape_out_silicon_proof")
+        assert rec.receipt_id.startswith("receipt_ms_")
+        assert prop.milestones_unlocked == 2
+        assert prop.streamed_capital_usdp == 200_000.0
+
+    def test_autonomous_microgrid_p2p_energy_trading(self):
+        """Verifies prosumer node registration, real-time P2P energy trades, and DMRV carbon offset credit issuance."""
+        from server.services.autonomous_microgrid_p2p_energy_trading import AutonomousMicrogridP2PEnergyTradingEngine
+
+        grid_engine = AutonomousMicrogridP2PEnergyTradingEngine()
+
+        # 1. Register rooftop solar prosumer
+        node = grid_engine.register_prosumer_node(
+            owner_did="did:token9898:solar_farm_south",
+            generation_type="ROOFTOP_SOLAR",
+            capacity_kw=200.0,
+            asking_price_kwh=0.080,
+        )
+        assert node.node_id.startswith("node_grid_")
+
+        # 2. Execute P2P energy trade
+        trade = grid_engine.execute_p2p_energy_trade(
+            seller_node_id=node.node_id,
+            buyer_did="did:token9898:ev_charging_station_hub",
+            energy_amount_kwh=500.0,
+        )
+        assert trade.trade_id.startswith("trade_energy_")
+        assert trade.total_settled_usdp == 40.0
+        assert trade.carbon_offset_issued_kg == 210.0  # 500 * 0.42
+        assert trade.proof_of_generation_hash.startswith("0xpog_smart_meter_sig_")
+
+    def test_zksnark_verifiable_solvency_proof_of_liabilities(self):
+        """Verifies Merkle Sum Tree liability leaves, zk-SNARK solvency proofs, and individual user audit paths."""
+        from server.services.zksnark_verifiable_solvency_proof_of_liabilities import ZkSNARKVerifiableSolvencyProofOfLiabilitiesEngine
+
+        solvency_engine = ZkSNARKVerifiableSolvencyProofOfLiabilitiesEngine()
+
+        # 1. Record user deposit
+        leaf = solvency_engine.record_user_deposit(
+            user_did="did:token9898:tier1_defi_vault",
+            balance_usdp=10_000_000.0,
+        )
+        assert leaf.leaf_hash.startswith("0xleaf_sum_")
+
+        # 2. Generate zk-SNARK solvency epoch
+        epoch = solvency_engine.generate_zk_solvency_proof()
+        assert epoch.epoch_id.startswith("epoch_solvency_")
+        assert epoch.is_fully_solvent is True
+        assert epoch.solvency_ratio_pct > 100.0
+        assert epoch.zksnark_solvency_proof_hex.startswith("0xzksnark_solvency_proof_")
+        assert epoch.pq_audit_signature.startswith("0xmldsa87_solvency_auditor_sig_")
+
+        # 3. Individual user inclusion proof
+        inc_proof = solvency_engine.get_user_inclusion_proof("did:token9898:tier1_defi_vault")
+        assert inc_proof["balance_usdp"] == 10_000_000.0
+        assert inc_proof["verification_status"] == "INCLUDED_IN_SOLVENT_ROOT"
+
+
+class TestzkDIDComputeArbitrageInsurance:
+    """Validates Prompt 222 (Quantum-Resistant zkDID & Selective Attestation), Prompt 223 (Autonomous AI Compute Cluster Arbitrage), Prompt 224 (Dynamic Risk Insurance Actuarial Underwriting Pool)."""
+
+    def test_quantum_zkdid_credential_attestation(self):
+        """Verifies schema registration, credential issuance with blinded commitments, and selective attestation generation with Sybil nullifiers."""
+        from server.services.quantum_zkdid_credential_attestation_engine import QuantumZkDIDCredentialAttestationEngine
+
+        engine = QuantumZkDIDCredentialAttestationEngine()
+
+        # 1. Register schema
+        schema = engine.register_schema(
+            schema_name="Accredited DAO Governor Credential",
+            issuer_did="did:token9898:kyc_issuer_dao",
+            attribute_keys=["is_accredited", "voting_power_tier", "reputation_score"],
+        )
+        assert schema.schema_id.startswith("schema_")
+
+        # 2. Issue credential
+        cred = engine.issue_credential(
+            schema_id=schema.schema_id,
+            holder_did="did:token9898:sovereign_governor_alpha",
+            attributes={"is_accredited": True, "voting_power_tier": 3, "reputation_score": 98.5},
+            revocation_index=42,
+        )
+        assert cred.credential_id.startswith("zk_cred_")
+        assert cred.blinded_attributes_commitment.startswith("0xpedersen_blinded_cm_")
+        assert cred.pq_issuer_signature.startswith("0xmldsa87_issuer_cred_sig_")
+
+        # 3. Generate selective attestation with nullifier
+        proof = engine.generate_selective_attestation(
+            credential_id=cred.credential_id,
+            verifier_scope="DAO_GOVERNANCE_BALLOT_PROPOSAL_42",
+            disclosed_predicates={"is_accredited": True, "voting_power_tier_gte": 2},
+        )
+        assert proof.proof_id.startswith("proof_attest_")
+        assert proof.nullifier_hash.startswith("0xnullifier_")
+        assert proof.is_valid is True
+
+    def test_autonomous_ai_compute_cluster_arbitrage(self):
+        """Verifies GPU cluster registration, optimal spot capacity arbitrage selection, and compute lease execution."""
+        from server.services.autonomous_ai_compute_cluster_arbitrage import AutonomousAIComputeClusterArbitrageEngine
+
+        engine = AutonomousAIComputeClusterArbitrageEngine()
+
+        # 1. Register GPU cluster
+        cluster = engine.register_compute_cluster(
+            provider_did="did:token9898:green_datacenter_norway",
+            gpu_model="NVIDIA_H200_NVL",
+            gpu_count=32,
+            tflops=80000.0,
+            vram_gb=4480.0,
+            price_per_gpu_hour=2.50,
+            region="EU_NORWAY_HYDRO",
+            green_pct=100.0,
+        )
+        assert cluster.cluster_id.startswith("cluster_")
+
+        # 2. Find optimal arbitrage cluster
+        optimal = engine.find_optimal_arbitrage_cluster(
+            min_gpus_required=16,
+            max_budget_per_gpu_hour=3.00,
+            prefer_green_energy=True,
+        )
+        assert optimal is not None
+
+        # 3. Create compute lease
+        lease = engine.create_compute_lease(
+            cluster_id=cluster.cluster_id,
+            client_did="did:token9898:ai_lab_researcher",
+            allocated_gpus=8,
+            duration_hours=10.0,
+            workload_type="LLM_PRETRAINING_CHECKPOINT",
+        )
+        assert lease.lease_id.startswith("lease_")
+        assert lease.total_cost_usdp == 200.0  # 8 * 10 * 2.50
+        assert lease.sla_performance_hash.startswith("0xsla_hardware_proof_")
+
+    def test_dynamic_risk_insurance_actuarial_pool(self):
+        """Verifies insurance policy underwriting, premium calculations, and parametric loss claim settlement."""
+        from server.services.dynamic_risk_insurance_actuarial_pool import DynamicRiskInsuranceActuarialPoolEngine
+
+        engine = DynamicRiskInsuranceActuarialPoolEngine()
+
+        # 1. Purchase insurance policy
+        policy = engine.purchase_insurance_policy(
+            pool_id="pool_defi_exploit_shield_01",
+            policyholder_did="did:token9898:lending_protocol_treasury",
+            coverage_amount_usdp=1_000_000.0,
+            duration_days=365,
+            trigger_criteria="SMART_CONTRACT_DRAIN_EVENT",
+        )
+        assert policy.policy_id.startswith("policy_")
+        assert policy.premium_paid_usdp == 28500.0  # 1M * 2.85%
+
+        # 2. Execute parametric claim payout
+        receipt = engine.execute_parametric_claim_payout(
+            policy_id=policy.policy_id,
+            oracle_proof_hash="0xoracle_loss_verification_sig_abc",
+            zk_loss_proof_hex="0xzk_loss_audit_proof_123",
+        )
+        assert receipt.receipt_id.startswith("claim_receipt_")
+        assert receipt.payout_amount_usdp == 1_000_000.0
+        assert receipt.pq_settlement_signature.startswith("0xmldsa87_insurance_claim_sig_")
+        assert policy.policy_status == "CLAIMED"
+
+
+class TestCBDCFXAndQKDNetwork:
+    """Validates Prompt 225 (Sovereign CBDC Cross-Border FX Settlement Matrix) and Prompt 226 (QKD Photonic Mesh & Entropy Network)."""
+
+    def test_sovereign_cbdc_cross_border_fx_settlement_matrix(self):
+        """Verifies sovereign currency corridor lookup, atomic PvP clearing, and central bank ML-DSA-87 signatures."""
+        from server.services.sovereign_cbdc_cross_border_fx_settlement_matrix import SovereignCBDCCrossBorderFXSettlementMatrixEngine
+
+        fx_engine = SovereignCBDCCrossBorderFXSettlementMatrixEngine()
+
+        # 1. Execute PvP atomic settlement for USDP -> e_INR corridor
+        settlement = fx_engine.execute_atomic_pvp_fx_settlement(
+            corridor_id="corridor_usdp_e_inr",
+            sender_bank_did="did:token9898:tier1_bank_new_york",
+            receiver_bank_did="did:token9898:state_bank_mumbai",
+            amount_usdp=500_000.0,
+        )
+
+        assert settlement.settlement_id.startswith("pvp_fx_")
+        assert settlement.base_amount_usdp == 500_000.0
+        assert settlement.quote_amount_settled == 43_250_000.0  # 500k * 86.50
+        assert settlement.pvp_atomic_proof_hash.startswith("0xpvp_atomic_lock_proof_")
+        assert settlement.central_bank_pq_sig.startswith("0xmldsa87_central_bank_pvp_sig_")
+        assert settlement.status == "SETTLED_ATOMICALLY"
+
+        # 2. Verify telemetry
+        telemetry = fx_engine.get_fx_matrix_telemetry()
+        assert telemetry["total_cross_border_volume_usdp"] >= 500_000.0
+        assert telemetry["active_sovereign_corridors_count"] == 4
+
+    def test_qkd_photonic_mesh_entropy_network(self):
+        """Verifies QKD optical session establishment, QBER eavesdropping thresholds, and quantum entropy beacon emission."""
+        from server.services.qkd_photonic_mesh_entropy_network import QKDPhotonicMeshEntropyNetworkEngine
+
+        qkd_engine = QKDPhotonicMeshEntropyNetworkEngine()
+
+        # 1. Establish QKD photonic session between Geneva and GIFT City
+        session = qkd_engine.establish_qkd_session(
+            initiator_id="qkd_node_geneva_01",
+            receiver_id="qkd_node_giftcity_02",
+            key_length_bits=4096,
+        )
+        assert session.session_id.startswith("qkd_sess_")
+        assert session.security_level == "INFORMATION_THEORETIC_OTP"
+        assert session.shared_key_hash.startswith("0xqkd_shared_key_hash_")
+        assert session.qber_measured_pct < 3.5
+
+        # 2. Emit physical quantum random entropy beacon
+        beacon = qkd_engine.emit_quantum_entropy_seed()
+        assert beacon.epoch_id.startswith("q_entropy_")
+        assert len(beacon.entropy_seed_hex) == 128
+        assert beacon.shannon_entropy_estimate >= 7.99
+
+class TestStreamingAgriAndSpaceRegistry:
+    """Validates Prompt 227 (Autonomous AI Streaming Micropayments & Barter Matrix), Prompt 228 (Geo-Spatial Satellite Crop Yield Futures), Prompt 229 (Autonomous Space Mining Orbital Registry)."""
+
+    def test_autonomous_ai_streaming_micropayments_barter_matrix(self):
+        """Verifies state channel creation, sub-millisecond micropayment streaming, and on-chain netting."""
+        from server.services.autonomous_ai_streaming_micropayments_barter_matrix import AutonomousAIStreamingMicropaymentsBarterMatrixEngine
+
+        matrix = AutonomousAIStreamingMicropaymentsBarterMatrixEngine()
+
+        # 1. Open channel
+        channel = matrix.open_micropayment_channel(
+            agent_a_did="did:token9898:ai_vision_agent_01",
+            agent_b_did="did:token9898:ai_voice_synth_02",
+            deposit_a_usdp=100.0,
+            deposit_b_usdp=50.0,
+            stream_rate_per_sec=0.01,
+        )
+        assert channel.channel_id.startswith("chan_")
+        assert channel.status == "STREAMING"
+
+        # 2. Stream micropayment tick
+        receipt = matrix.stream_micro_tick(channel.channel_id, channel.agent_a_did, 0.05)
+        assert receipt.receipt_id.startswith("rcpt_stream_")
+        assert receipt.amount_transferred_usdp == 0.05
+        assert channel.current_balance_a_usdp == 99.95
+        assert channel.current_balance_b_usdp == 50.05
+
+        # 3. Create barter contract
+        barter = matrix.create_barter_exchange(
+            provider_did="did:token9898:ai_vision_agent_01",
+            consumer_did="did:token9898:ai_voice_synth_02",
+            provided_asset="REAL_TIME_VIDEO_SEGMENTATION",
+            consumed_asset="TTS_STREAMING_AUDIO",
+            exchange_ratio=1.25,
+        )
+        assert barter.barter_id.startswith("barter_")
+
+        # 4. Settle channel on chain
+        settlement = matrix.settle_and_close_channel(channel.channel_id)
+        assert settlement["status"] == "SETTLED_ON_CHAIN"
+        assert settlement["pq_settlement_signature"].startswith("0xmldsa87_channel_closure_sig_")
+
+    def test_geospatial_satellite_crop_yield_futures(self):
+        """Verifies agricultural zone registration, futures hedging, and satellite remote sensing oracle settlement."""
+        from server.services.geospatial_satellite_crop_yield_futures import GeoSpatialSatelliteCropYieldFuturesEngine
+
+        agri_engine = GeoSpatialSatelliteCropYieldFuturesEngine()
+
+        # 1. Register farmland zone
+        zone = agri_engine.register_farmland_zone(
+            region_name="Mato_Grosso_Soybean_Belt",
+            crop_type="SOYBEANS",
+            hectares=100_000.0,
+            expected_yield_per_ha=3.80,
+        )
+        assert zone.zone_id.startswith("zone_")
+
+        # 2. Create yield futures hedge
+        contract = agri_engine.create_yield_futures_hedge(
+            zone_id=zone.zone_id,
+            buyer_did="did:token9898:global_grain_coop",
+            seller_did="did:token9898:brazil_agri_fund",
+            hedged_volume_tons=50_000.0,
+            price_per_ton_usdp=420.0,
+            duration_days=90,
+        )
+        assert contract.contract_id.startswith("agri_fut_")
+        assert contract.total_contract_value_usdp == 21_000_000.0
+
+        # 3. Settle via satellite remote sensing oracle
+        settlement = agri_engine.settle_contract_via_satellite_oracle(
+            contract_id=contract.contract_id,
+            measured_ndvi=0.78,
+            measured_sar_moisture=45.0,
+        )
+        assert settlement.settlement_id.startswith("agri_settle_")
+        assert settlement.sentinel_sar_telemetry_signature.startswith("0xmldsa87_satellite_constellation_sig_")
+        assert contract.status in ["SETTLED_HARVEST", "PARAMETRIC_PAYOUT_TRIGGERED"]
+
+    def test_autonomous_space_mining_orbital_registry(self):
+        """Verifies asteroid target prospect registration, mass-spectrometry verified resource titles, and forward sales."""
+        from server.services.autonomous_space_mining_orbital_registry import AutonomousSpaceMiningOrbitalRegistryEngine
+
+        space_engine = AutonomousSpaceMiningOrbitalRegistryEngine()
+
+        # 1. Register prospect
+        prospect = space_engine.register_asteroid_prospect(
+            target_name="Near-Earth Asteroid Amun 3554",
+            celestial_type="M_TYPE_METALLIC_ASTEROID",
+            mass_kg=3.0e11,
+            commodity="PLATINUM_GROUP_METALS",
+            probe_did="did:token9898:deep_space_surveyor_04",
+            confidence_pct=97.2,
+        )
+        assert prospect.prospect_id.startswith("prospect_")
+
+        # 2. Mint extracted resource title
+        title = space_engine.mint_extracted_resource_title(
+            prospect_id=prospect.prospect_id,
+            claimant_did="did:token9898:orbital_refinery_corp",
+            commodity_type="PLATINUM_GROUP_METALS",
+            quantity_kg=500.0,
+            purity_pct=99.85,
+            storage_location="LEO_CARGO_CONTAINER_A1",
+            unit_market_price_usdp_per_kg=32_000.0,
+        )
+        assert title.title_id.startswith("title_space_")
+        assert title.estimated_market_value_usdp == 16_000_000.0
+        assert title.mass_spec_telemetry_signature.startswith("0xmldsa87_deep_space_mass_spec_sig_")
+
+        # 3. Create forward sale
+        sale = space_engine.create_forward_space_commodity_sale(
+            title_id=title.title_id,
+            seller_did="did:token9898:orbital_refinery_corp",
+            buyer_did="did:token9898:semiconductor_foundry_earth",
+            quantity_kg=100.0,
+            price_per_kg_usdp=31_500.0,
+            delivery_epoch_days=120,
+        )
+        assert sale.contract_id.startswith("fwd_space_")
+        assert sale.total_contract_value_usdp == 3_150_000.0
+        assert sale.status == "CONFIRMED_ESCROW"
+
+
+class TestComplianceBandwidthAndQuantumRebalancer:
+    """Validates Prompt 230 (ZK Continuous KYC/AML Sanctions Matrix), Prompt 231 (Autonomous Subsea Optical Bandwidth Clearing), Prompt 232 (Quantum Algorithmic Yield Dynamic Rebalancer)."""
+
+    def test_zk_continuous_kyc_aml_sanctions_matrix(self):
+        """Verifies ZK non-membership proofs against international sanctions lists and ML-DSA-87 notarization."""
+        from server.services.zk_continuous_kyc_aml_sanctions_matrix import ZKContinuousKYCAMLSanctionsMatrixEngine
+
+        matrix = ZKContinuousKYCAMLSanctionsMatrixEngine()
+
+        # 1. Update/Add new sanctions authority root
+        new_root = matrix.update_sanctions_watchlist_root(
+            authority_name="EU_CONSOLIDATED_LIST",
+            entries_count=12400,
+            raw_seed=b"eu_sanctions_2026_update",
+        )
+        assert new_root.root_id.startswith("root_eu_consolidated_list_")
+        assert new_root.merkle_root_hash.startswith("0xmerkle_root_")
+        assert new_root.pq_authority_signature.startswith("0xmldsa87_authority_sig_")
+
+        # 2. Generate ZK compliance proof
+        proof = matrix.generate_zk_compliance_proof(
+            subject_did="did:token9898:tier1_fund_geneva",
+            authority_root_id=new_root.root_id,
+            source_of_funds_amount_usdp=10_000_000.0,
+        )
+        assert proof.proof_id.startswith("zk_comp_")
+        assert proof.compliance_passed is True
+        assert proof.subject_did_commitment.startswith("0xpedersen_did_cm_")
+        assert proof.zk_snark_proof_hex.startswith("0xzk_non_membership_proof_")
+        assert proof.regulator_audit_sig.startswith("0xmldsa87_compliance_notary_sig_")
+
+        # 3. Telemetry
+        tel = matrix.get_compliance_telemetry()
+        assert tel["active_sanctions_authorities_tracked"] >= 3
+        assert tel["total_compliance_proofs_generated"] >= 1
+
+    def test_autonomous_subsea_optical_bandwidth_clearing(self):
+        """Verifies subsea cable trunk registration, bandwidth leasing in USDP, and parametric SLA fault payouts."""
+        from server.services.autonomous_subsea_optical_bandwidth_clearing import AutonomousSubseaOpticalBandwidthClearingEngine
+
+        clearing_engine = AutonomousSubseaOpticalBandwidthClearingEngine()
+
+        # 1. Register subsea cable
+        cable = clearing_engine.register_subsea_cable(
+            cable_name="SEA-ME-WE 6 High-Bandwidth Fiber",
+            landing_stations=["Singapore", "Chennai", "Mumbai", "Djibouti", "Marseille"],
+            design_capacity_tbps=120.0,
+            lit_capacity_tbps=60.0,
+            latency_ms=64.8,
+        )
+        assert cable.cable_id.startswith("cable_")
+
+        # 2. Create bandwidth lease
+        lease = clearing_engine.create_bandwidth_lease(
+            cable_id=cable.cable_id,
+            buyer_did="did:token9898:cloud_hyperscaler_sg",
+            seller_did="did:token9898:telecom_consortium_global",
+            bandwidth_gbps=400.0,
+            duration_hours=720,
+            rate_per_gbps_hour_usdp=0.08,
+        )
+        assert lease.contract_id.startswith("lease_")
+        assert lease.total_lease_cost_usdp == 23_040.0  # 400 * 720 * 0.08
+        assert lease.status == "ACTIVE"
+
+        # 3. Trigger parametric SLA fault payout
+        incident = clearing_engine.trigger_parametric_sla_fault_payout(
+            lease_id=lease.contract_id,
+            incident_type="CABLE_SEVERANCE_ANCHOR_DRAG",
+        )
+        assert incident.incident_id.startswith("sla_inc_")
+        assert incident.sla_penalty_payout_usdp == 23_040.0
+        assert incident.carrier_notary_sig.startswith("0xmldsa87_optical_telecom_sig_")
+        assert lease.status == "PARAMETRIC_REROUTED"
+
+    def test_quantum_algorithmic_yield_dynamic_rebalancer(self):
+        """Verifies yield vault registration, QAOA Hamiltonian portfolio optimization, and ML-DSA-87 signed rebalancing."""
+        from server.services.quantum_algorithmic_yield_dynamic_rebalancer import QuantumAlgorithmicYieldDynamicRebalancerEngine
+
+        rebalancer = QuantumAlgorithmicYieldDynamicRebalancerEngine()
+
+        # 1. Register yield vault
+        vault = rebalancer.register_yield_vault(
+            vault_name="Sovereign Gold-Backed USDP Yield Vault",
+            initial_tvl_usdp=40_000_000.0,
+            apy_pct=7.50,
+            volatility_pct=0.60,
+            risk_tier="TIER_2_HIGH_GRADE_RWA",
+        )
+        assert vault.vault_id.startswith("vault_")
+
+        # 2. Execute QAOA quantum rebalancing
+        event = rebalancer.execute_quantum_qaoa_rebalance(max_risk_volatility_pct=1.2)
+        assert event.event_id.startswith("q_rebal_")
+        assert event.qaoa_optimization_proof.startswith("0xqaoa_hamiltonian_eigenstate_proof_")
+        assert event.execution_sig.startswith("0xmldsa87_rebalance_execution_sig_")
+        assert event.expected_portfolio_apy_pct > 0.0
+        assert event.estimated_sharpe_ratio > 0.0
+
+        # 3. Telemetry
+        tel = rebalancer.get_rebalancer_telemetry()
+        assert tel["active_yield_vaults_count"] == 4
+        assert tel["total_managed_vault_tvl_usdp"] == 140_000_000.0
+        assert tel["total_rebalance_executions_count"] >= 1
+
+
+class TestLogisticsVPPAndMEVProtection:
+    """Validates Prompt 233 (Autonomous Multimodal Logistics & eBL Clearing), Prompt 234 (Autonomous AI Smart Grid VPP Frequency Clearing), Prompt 235 (ZK Dark-Forest MEV-Resistant Sequencing Mesh)."""
+
+    def test_autonomous_multimodal_logistics_ebl_clearing(self):
+        """Verifies eBL issuance, negotiable title endorsement transfers, IoT cold-chain telemetry, and PvD settlement."""
+        from server.services.autonomous_multimodal_logistics_ebl_clearing import AutonomousMultimodalLogisticsEBLClearingEngine
+
+        logistics_engine = AutonomousMultimodalLogisticsEBLClearingEngine()
+
+        # 1. Issue eBL
+        ebl = logistics_engine.issue_electronic_bill_of_lading(
+            carrier_did="did:token9898:cosco_shipping_line",
+            shipper_did="did:token9898:lithium_battery_mfg_shanghai",
+            initial_titleholder_did="did:token9898:trade_bank_singapore",
+            vessel_imo="IMO9845112",
+            port_loading="PORT_OF_SHANGHAI",
+            port_discharge="PORT_OF_LOS_ANGELES",
+            cargo_desc="High-Energy Density Solid State Battery Cells",
+            declared_value_usdp=8_000_000.0,
+        )
+        assert ebl.ebl_id.startswith("ebl_")
+        assert ebl.pq_carrier_signature.startswith("0xmldsa87_ocean_carrier_sig_")
+
+        # 2. Transfer negotiable title
+        ebl_transferred = logistics_engine.transfer_ebl_title_endorsement(
+            ebl_id=ebl.ebl_id,
+            current_holder_did="did:token9898:trade_bank_singapore",
+            new_titleholder_did="did:token9898:ev_oem_california",
+        )
+        assert ebl_transferred.current_titleholder_did == "did:token9898:ev_oem_california"
+
+        # 3. Record IoT telemetry
+        telemetry = logistics_engine.record_iot_cargo_telemetry(
+            ebl_id=ebl.ebl_id,
+            container_serial="CSQU3054118",
+            temp_c=2.8,
+            humidity_pct=45.0,
+            shock_g=0.3,
+            geo_coords="34.0522 N, 118.2437 W",
+        )
+        assert telemetry.is_cold_chain_breached is False
+
+        # 4. Execute Payment-vs-Delivery settlement
+        pvd = logistics_engine.execute_payment_vs_delivery_settlement(
+            ebl_id=ebl.ebl_id,
+            payer_did="did:token9898:ev_oem_california",
+            customs_clearance_hash="0xcbp_us_customs_clearance_88921",
+            terminal_gate_out_proof="0xterminal_gate_out_pass_la_pier400",
+        )
+        assert pvd.settlement_id.startswith("pvd_settle_")
+        assert pvd.amount_settled_usdp == 8_000_000.0
+        assert pvd.pq_settlement_sig.startswith("0xmldsa87_customs_pvd_sig_")
+        assert ebl.is_surrendered is True
+
+    def test_autonomous_ai_smart_grid_vpp_frequency_clearing(self):
+        """Verifies DER asset registration, sub-second frequency ancillary dispatch, and zero-knowledge energy settlement."""
+        from server.services.autonomous_ai_smart_grid_vpp_frequency_clearing import AutonomousAISmartGridVPPFrequencyClearingEngine
+
+        vpp_engine = AutonomousAISmartGridVPPFrequencyClearingEngine()
+
+        # 1. Register DER asset
+        der = vpp_engine.register_der_asset(
+            owner_did="did:token9898:microgrid_operator_texas",
+            asset_type="RESIDENTIAL_BESS",
+            grid_node="ERCOT_Substation_Houston_East",
+            capacity_mw=30.0,
+            ramp_rate_mw_sec=15.0,
+        )
+        assert der.der_id.startswith("der_")
+
+        # 2. Trigger frequency disruption dispatch (under-frequency condition 59.85 Hz vs 60.0 Hz)
+        settlements = vpp_engine.trigger_grid_frequency_ancillary_dispatch(
+            nominal_hz=60.0,
+            measured_hz=59.85,
+            duration_sec=20.0,
+            spot_rate_usdp_mwh=500.0,
+        )
+        assert len(settlements) >= 1
+        st = settlements[0]
+        assert st.settlement_id.startswith("vpp_payout_")
+        assert st.energy_injected_mwh > 0.0
+        assert st.zk_dispatch_proof_hash.startswith("0xzk_der_smart_meter_")
+        assert st.rto_operator_sig.startswith("0xmldsa87_grid_operator_")
+
+        # 3. Telemetry
+        tel = vpp_engine.get_vpp_grid_telemetry()
+        assert tel["registered_der_assets_count"] == 3
+        assert tel["frequency_disruptions_handled"] >= 1
+        assert tel["total_energy_injected_mwh"] > 0.0
+
+    def test_zk_dark_forest_mev_resistant_sequencing_mesh(self):
+        """Verifies threshold-encrypted order mempool submissions, VDF fair sequencing, and zero-knowledge batch clearing."""
+        from server.services.zk_dark_forest_mev_resistant_sequencing_mesh import ZKDarkForestMEVResistantSequencingMeshEngine
+
+        mesh = ZKDarkForestMEVResistantSequencingMeshEngine()
+
+        # 1. Submit encrypted order
+        order = mesh.submit_encrypted_order(
+            trader_did="did:token9898:algorithmic_arbitrage_fund",
+            pool_id="pool_usdp_sovereign_gold",
+            raw_order_details="SWAP 1,000,000 USDP for TOKEN 9898048483 MAX_SLIPPAGE 0.05%",
+        )
+        assert order.order_id.startswith("enc_ord_")
+        assert order.trader_did_commitment.startswith("0xpedersen_cm_")
+        assert order.encrypted_order_payload_hex.startswith("0xmlkem1024_fhe_")
+
+        # 2. Execute fair batch auction
+        batch = mesh.execute_fair_batch_auction(
+            pool_id="pool_usdp_sovereign_gold",
+            simulated_volume_usdp=5_000_000.0,
+            uniform_price_usdp=1.0025,
+        )
+        assert batch.batch_id.startswith("batch_")
+        assert batch.uniform_clearing_price_usdp == 1.0025
+        assert batch.total_matched_volume_usdp == 5_000_000.0
+        assert batch.mev_sandwich_slippage_prevented_usdp > 0.0
+        assert batch.zk_fair_sequencing_proof_hash.startswith("0xzk_vdf_fair_sequencing_proof_")
+        assert batch.proposer_pq_signature.startswith("0xmldsa87_fair_proposer_sig_")
+
+        # 3. Telemetry
+        tel = mesh.get_dark_forest_telemetry()
+        assert tel["total_batches_settled"] >= 1
+        assert tel["total_protected_trading_volume_usdp"] >= 5_000_000.0
+
+
+class TestCarbonSatelliteAndConfidentialCredit:
+    """Validates Prompt 236 (RWA Carbon Credit & Biodiversity dMRV), Prompt 237 (Autonomous Satellite Mesh Relay & STM), Prompt 238 (ZK Confidential Credit & Lending Protocol)."""
+
+    def test_autonomous_rwa_carbon_mrv_biodiversity_registry(self):
+        """Verifies carbon project registration, satellite dMRV credit minting, and cryptographic retirement."""
+        from server.services.autonomous_rwa_carbon_mrv_biodiversity_registry import AutonomousRWACarbonMRVBiodiversityRegistryEngine
+
+        engine = AutonomousRWACarbonMRVBiodiversityRegistryEngine()
+
+        # 1. Register project
+        proj = engine.register_carbon_project(
+            project_name="Congo Basin Peatland Shield",
+            project_type="NATURE_BASED_REDD_PLUS",
+            country="DEMOCRATIC_REPUBLIC_OF_CONGO",
+            hectares=300_000.0,
+            annual_tco2_rate=900_000.0,
+        )
+        assert proj.project_id.startswith("proj_")
+
+        # 2. Mint dMRV verified credits
+        batch = engine.mint_verified_carbon_credits(
+            project_id=proj.project_id,
+            vintage_year=2026,
+            quantity_tco2=50_000.0,
+            unit_price_usdp=28.50,
+            satellite_lidar_ndvi_score=0.88,
+        )
+        assert batch.credit_batch_id.startswith("carbon_batch_")
+        assert batch.dmrv_telemetry_proof_hash.startswith("0xdmrv_lidar_biomass_proof_")
+        assert batch.registry_pq_signature.startswith("0xmldsa87_environmental_registry_sig_")
+
+        # 3. Retire credits
+        cert = engine.retire_carbon_credits(
+            batch_id=batch.credit_batch_id,
+            retiree_did="did:token9898:global_hyperscaler_datacenter",
+            quantity_to_retire=10_000.0,
+            purpose="SCOPE_2_AI_CLUSTER_CARBON_OFFSET",
+        )
+        assert cert.certificate_id.startswith("retire_cert_")
+        assert cert.quantity_retired_tco2 == 10_000.0
+        assert cert.zk_offset_audit_hash.startswith("0xzk_carbon_retirement_audit_")
+        assert cert.pq_certificate_sig.startswith("0xmldsa87_retirement_notary_sig_")
+
+        # 4. Telemetry
+        tel = engine.get_carbon_mrv_telemetry()
+        assert tel["registered_conservation_projects"] >= 3
+        assert tel["total_credits_permanently_retired_tco2"] >= 10_000.0
+
+    def test_autonomous_satellite_mesh_orbital_relay(self):
+        """Verifies satellite node registration, CDM conjunction ingestion, and automated collision avoidance burns."""
+        from server.services.autonomous_satellite_mesh_orbital_relay_engine import AutonomousSatelliteMeshOrbitalRelayEngine
+
+        engine = AutonomousSatelliteMeshOrbitalRelayEngine()
+
+        # 1. Register satellite
+        sat = engine.register_satellite_node(
+            norad_id=62001,
+            operator_did="did:token9898:commercial_space_telecom",
+            constellation="Global_Laser_Mesh_01",
+            altitude_km=560.0,
+            inclination=55.0,
+            bandwidth_gbps=120.0,
+            propellant_kg=50.0,
+        )
+        assert sat.sat_id == "sat_62001"
+
+        # 2. Ingest CDM with high collision risk
+        cdm = engine.ingest_conjunction_data_message(
+            sat_id=sat.sat_id,
+            debris_norad_id=48920,
+            miss_distance_m=180.0,
+            collision_prob=2.5e-3,
+            time_to_closest_approach_sec=1800.0,
+        )
+        assert cdm.requires_avoidance_maneuver is True
+
+        # 3. Execute automated collision avoidance burn
+        maneuver = engine.execute_collision_avoidance_maneuver(
+            cdm_id=cdm.cdm_id,
+            delta_v_mps=1.2,
+        )
+        assert maneuver.maneuver_id.startswith("maneuver_")
+        assert maneuver.delta_v_meters_per_sec == 1.2
+        assert maneuver.propellant_burned_kg > 0.0
+        assert maneuver.stm_flight_authorization_sig.startswith("0xmldsa87_stm_orbital_flight_sig_")
+        assert sat.propellant_remaining_kg < 50.0
+
+        # 4. Telemetry
+        tel = engine.get_orbital_mesh_telemetry()
+        assert tel["active_satellite_nodes"] >= 3
+        assert tel["debris_avoidance_maneuvers_executed"] >= 1
+
+    def test_zk_confidential_credit_lending_protocol(self):
+        """Verifies Pedersen collateral commitment loan opening, ZK solvency range proof, and USDP loan repayment."""
+        from server.services.zk_confidential_credit_lending_protocol import ZKConfidentialCreditLendingProtocolEngine
+
+        engine = ZKConfidentialCreditLendingProtocolEngine()
+
+        # 1. Open confidential credit line
+        pos, proof = engine.open_confidential_credit_line(
+            borrower_did="did:token9898:market_maker_alpha",
+            collateral_amount_raw=10_000_000.0,
+            borrow_amount_usdp=6_000_000.0,
+            blinding_factor_seed=b"high_entropy_seed_9898",
+            borrow_apr_pct=4.80,
+        )
+        assert pos.loan_id.startswith("loan_")
+        assert pos.confidential_collateral_commitment.startswith("0xpedersen_cm_")
+        assert proof.is_solvent is True
+        assert proof.zk_snark_range_proof_hex.startswith("0xzk_snark_bulletproof_range_proof_")
+
+        # 2. Repay loan
+        rcpt = engine.repay_loan_principal(
+            loan_id=pos.loan_id,
+            repay_amount_usdp=2_000_000.0,
+        )
+        assert rcpt.receipt_id.startswith("repay_rcpt_")
+        assert rcpt.amount_repaid_usdp == 2_000_000.0
+        assert rcpt.remaining_principal_usdp == 4_000_000.0
+        assert rcpt.pq_repayment_sig.startswith("0xmldsa87_lending_repayment_sig_")
+
+        # 3. Telemetry
+        tel = engine.get_confidential_credit_telemetry()
+        assert tel["total_credit_positions"] >= 2
+        assert tel["total_principal_lent_usdp"] >= 31_000_000.0
+
+
+class TestFusionInferenceAndZKPassport:
+    """Validates Prompt 239 (Autonomous Sovereign Fusion PPA Settlement), Prompt 240 (ZK Verifiable Compute GPU AI Inference Marketplace), Prompt 241 (Autonomous Sovereign Digital Passport ZK-DID Identity)."""
+
+    def test_autonomous_sovereign_nuclear_fusion_power_ppa_settlement(self):
+        """Verifies fusion power plant registration, PPA smart contract creation, and continuous energy micro-settlement."""
+        from server.services.autonomous_sovereign_nuclear_fusion_power_ppa_settlement import AutonomousSovereignNuclearFusionPowerPPASettlementEngine
+
+        engine = AutonomousSovereignNuclearFusionPowerPPASettlementEngine()
+
+        # 1. Register fusion plant
+        plant = engine.register_fusion_power_plant(
+            facility_name="Hyperion Stellerator Grid Facility",
+            reactor_type="STELLARATOR",
+            nameplate_capacity_mw=600.0,
+            initial_q_factor=5.5,
+            grid_substation="Supergrid_Substation_GIFT_01",
+        )
+        assert plant.plant_id.startswith("plant_")
+        assert plant.current_q_plasma_factor == 5.5
+
+        # 2. Create PPA smart contract
+        ppa = engine.create_clean_energy_ppa(
+            plant_id=plant.plant_id,
+            buyer_did="did:token9898:ai_datacenter_operator",
+            seller_did="did:token9898:fusion_power_corp",
+            contracted_mw=100.0,
+            tariff_usdp_per_mwh=45.0,
+            duration_hours=720,
+        )
+        assert ppa.ppa_id.startswith("ppa_")
+        assert ppa.total_committed_value_usdp == 100.0 * 720 * 45.0
+
+        # 3. Stream settlement tick
+        receipt = engine.stream_ppa_energy_settlement_tick(
+            ppa_id=ppa.ppa_id,
+            duration_hours_tick=2.0,
+        )
+        assert receipt.settlement_id.startswith("fusion_settle_")
+        assert receipt.energy_delivered_mwh == 200.0
+        assert receipt.settled_amount_usdp == 9000.0
+        assert receipt.proof_of_generation_hash.startswith("0xproof_of_generation_q_plasma_")
+        assert receipt.grid_notary_sig.startswith("0xmldsa87_grid_fusion_")
+
+        # 4. Telemetry
+        tel = engine.get_fusion_ppa_telemetry()
+        assert tel["active_fusion_plants"] >= 3
+        assert tel["total_energy_delivered_mwh"] >= 200.0
+
+    def test_zk_verifiable_compute_gpu_ai_inference_marketplace(self):
+        """Verifies GPU worker registration, AI model commitment, and verifiable inference execution with zk-STARK trace proofs."""
+        from server.services.zk_verifiable_compute_gpu_ai_inference_marketplace import ZKVerifiableComputeGPUAIInferenceMarketplaceEngine
+
+        engine = ZKVerifiableComputeGPUAIInferenceMarketplaceEngine()
+
+        # 1. Register GPU worker
+        worker = engine.register_gpu_worker_node(
+            operator_did="did:token9898:gpu_mining_pool_oslo",
+            hardware_arch="NVIDIA_H200_141GB",
+            gpu_count=16,
+            tflops_fp16=32000.0,
+            hourly_rate_usdp=45.0,
+        )
+        assert worker.worker_id.startswith("worker_")
+
+        # 2. Register AI model commitment
+        model = engine.register_ai_model(
+            model_name="Quantum-Reasoning-MoE-400B",
+            params_billion=400.0,
+            weights_merkle_root="0xweights_merkle_root_quantum_reasoning_99812",
+            context_window=64000,
+            price_per_million_tokens=3.50,
+        )
+        assert model.model_id.startswith("model_")
+
+        # 3. Execute verifiable AI inference job
+        job = engine.execute_verifiable_ai_inference(
+            client_did="did:token9898:fintech_analytics_corp",
+            worker_id=worker.worker_id,
+            model_id=model.model_id,
+            prompt_tokens=4000,
+            completion_tokens=1000,
+            latency_ms=185.0,
+        )
+        assert job.job_id.startswith("job_")
+        assert job.prompt_tokens + job.completion_tokens == 5000
+        assert job.total_cost_usdp > 0.0
+        assert job.zkml_execution_trace_proof_hex.startswith("0xzkml_stark_execution_trace_proof_")
+        assert job.worker_pq_signature.startswith("0xmldsa87_gpu_worker_inference_sig_")
+
+        # 4. Telemetry
+        tel = engine.get_inference_marketplace_telemetry()
+        assert tel["active_gpu_worker_nodes"] >= 3
+        assert tel["total_tokens_processed"] >= 5000
+
+    def test_autonomous_sovereign_digital_passport_zk_did_identity(self):
+        """Verifies sovereign credential issuance, selective disclosure ZK proof, and accumulator revocation."""
+        from server.services.autonomous_sovereign_digital_passport_zk_did_identity import AutonomousSovereignDigitalPassportZKDIDIdentityEngine
+
+        engine = AutonomousSovereignDigitalPassportZKDIDIdentityEngine()
+
+        # 1. Issue sovereign ZK credential
+        holder = engine.issue_sovereign_zk_credential(
+            holder_did="did:token9898:citizen_identity_switzerland_09",
+            country_code="CHE",
+            credential_type="ICAO_9303_EPASSPORT",
+            salted_pii_hash="0xpassport_hash_swiss_salt_88291",
+        )
+        assert holder.did == "did:token9898:citizen_identity_switzerland_09"
+        assert holder.identity_commitment_hex.startswith("0xposeidon_cm_")
+
+        # 2. Generate selective disclosure ZK proof (e.g. Age >= 21)
+        proof = engine.generate_selective_disclosure_zk_proof(
+            holder_did=holder.did,
+            claim_type="AGE_OVER_21",
+            relying_party_did="did:token9898:institutional_prime_brokerage",
+        )
+        assert proof.proof_id.startswith("zk_claim_")
+        assert proof.zk_snark_proof_hex.startswith("0xzk_snark_selective_disclosure_proof_")
+        assert proof.accumulator_non_revocation_witness.startswith("0xaccumulator_witness_non_revocation_")
+        assert proof.pq_notary_sig.startswith("0xmldsa87_icao_trust_anchor_sig_")
+
+        # 3. Revoke credential
+        old_acc_root = engine.revocation_accumulator_root
+        engine.revoke_identity_credential(holder.did)
+        assert holder.is_revoked is True
+        assert engine.revocation_accumulator_root != old_acc_root
+
+        # 4. Telemetry
+        tel = engine.get_zk_identity_telemetry()
+        assert tel["registered_sovereign_identities"] >= 3
+        assert tel["total_selective_disclosure_proofs_verified"] >= 1
+
+
+class TestQKDFabAndSovereignDebt:
+    """Validates Prompt 242 (Autonomous QKD Satellite Entanglement Mesh), Prompt 243 (Autonomous Semiconductor Fab EUV Capacity Clearing), Prompt 244 (ZK Sovereign Debt Restructuring Bond Settlement)."""
+
+    def test_autonomous_qkd_satellite_entanglement_mesh(self):
+        """Verifies optical ground terminal registration, QKD satellite pass execution, and quantum key streaming leases."""
+        from server.services.autonomous_qkd_satellite_entanglement_mesh import AutonomousQKDSatelliteEntanglementMeshEngine
+
+        engine = AutonomousQKDSatelliteEntanglementMeshEngine()
+
+        # 1. Register optical ground terminal
+        station = engine.register_ground_terminal(
+            station_name="Washington DC Sovereign Optical Terminal",
+            operator_did="did:token9898:space_telecom_agency",
+            lat=38.8951,
+            lon=-77.0364,
+            elevation_m=45.0,
+            efficiency_pct=86.5,
+        )
+        assert station.station_id.startswith("ogt_")
+
+        # 2. Execute QKD satellite pass
+        session = engine.execute_satellite_qkd_pass(
+            satellite_norad_id=58921,
+            station_id=station.station_id,
+            protocol="BBM92_ENTANGLED_PHOTONS",
+            raw_photons=15_000_000,
+            measured_qber=2.85,
+            measured_chsh_s=2.72,
+        )
+        assert session.session_id.startswith("qkd_session_")
+        assert session.is_entanglement_verified is True
+        assert session.sifted_key_bits_generated > 0
+        assert session.privacy_amplified_key_id.startswith("qkey_")
+
+        # 3. Create quantum key lease
+        lease = engine.create_quantum_key_lease(
+            subscriber_did="did:token9898:central_bank_treasury",
+            key_pool_id=session.privacy_amplified_key_id,
+            volume_megabits=100.0,
+            price_per_mb_usdp=30.0,
+        )
+        assert lease.contract_id.startswith("qlease_")
+        assert lease.total_cost_usdp == 3000.0
+        assert lease.zk_fidelity_proof_hash.startswith("0xzk_quantum_entanglement_fidelity_proof_")
+        assert lease.qkd_notary_sig.startswith("0xmldsa87_qkd_network_notary_sig_")
+
+        # 4. Telemetry
+        tel = engine.get_qkd_mesh_telemetry()
+        assert tel["active_optical_ground_terminals"] >= 3
+        assert tel["total_qkd_satellite_sessions"] >= 1
+        assert tel["total_qkd_lease_volume_usdp"] >= 3000.0
+
+    def test_autonomous_semiconductor_fab_euv_capacity_clearing(self):
+        """Verifies fab registration, wafer capacity booking, and automated metrology yield acceptance."""
+        from server.services.autonomous_semiconductor_fab_euv_capacity_clearing import AutonomousSemiconductorFabEUVCapacityClearingEngine
+
+        engine = AutonomousSemiconductorFabEUVCapacityClearingEngine()
+
+        # 1. Register semiconductor fab
+        fab = engine.register_semiconductor_fab(
+            fab_name="Kumamoto Advanced Silicon Foundry 2nm",
+            operator_did="did:token9898:japan_semiconductor_consortium",
+            node_nm=2.0,
+            scanner_type="HIGH_NA_EUV_0_55_NA",
+            capacity_wafers=45_000,
+            defect_density_d0=0.035,
+        )
+        assert fab.fab_id.startswith("fab_")
+
+        # 2. Book wafer capacity contract
+        contract = engine.book_wafer_capacity_contract(
+            fab_id=fab.fab_id,
+            customer_did="did:token9898:ai_chip_architects",
+            lot_size_wafers=50,
+            die_area_mm2=150.0,
+            price_per_wafer_usdp=22_000.0,
+            guaranteed_yield_pct=90.0,
+        )
+        assert contract.contract_id.startswith("wafer_contract_")
+        assert contract.total_contract_value_usdp == 50 * 22_000.0
+
+        # 3. Metrology acceptance
+        receipt = engine.process_wafer_metrology_acceptance(
+            contract_id=contract.contract_id,
+            measured_yield_pct=93.5,
+        )
+        assert receipt.receipt_id.startswith("metrology_rcpt_")
+        assert receipt.good_dies_per_wafer > 0
+        assert receipt.metrology_defect_map_hash.startswith("0xdefect_map_kla_tencor_optical_proof_")
+        assert receipt.fab_pq_signature.startswith("0xmldsa87_foundry_cleanroom_sig_")
+        assert contract.status == "METROLOGY_ACCEPTED"
+
+        # 4. Telemetry
+        tel = engine.get_semiconductor_fab_telemetry()
+        assert tel["active_foundry_fabs"] >= 3
+        assert tel["total_wafers_processed"] >= 50
+
+    def test_zk_sovereign_debt_restructuring_bond_settlement(self):
+        """Verifies sovereign bond registration, restructuring proposal submission, and ZK CAC quorum voting."""
+        from server.services.zk_sovereign_debt_restructuring_bond_settlement import ZKSovereignDebtRestructuringBondSettlementEngine
+
+        engine = ZKSovereignDebtRestructuringBondSettlementEngine()
+
+        # 1. Register sovereign bond
+        bond = engine.register_sovereign_bond(
+            country_code="ARG",
+            bond_name="Republic of Sovereign 2035 Climate Resilience Bond",
+            principal_usdp=2_000_000_000.0,
+            coupon_pct=8.5,
+            maturity_year=2035,
+        )
+        assert bond.series_id.startswith("bond_arg_")
+
+        # 2. Submit restructuring proposal
+        proposal = engine.submit_restructuring_proposal(
+            country_code="ARG",
+            series_ids=[bond.series_id],
+            haircut_pct=25.0,
+            new_coupon_pct=5.0,
+            extension_years=6,
+            gdp_warrant=True,
+        )
+        assert proposal.proposal_id.startswith("proposal_")
+        assert bond.is_under_restructuring is True
+
+        # 3. Execute ZK CAC voting settlement
+        receipt = engine.execute_zk_cac_voting_settlement(
+            proposal_id=proposal.proposal_id,
+            participating_creditor_quorum_pct=84.2,
+        )
+        assert receipt.vote_batch_id.startswith("cac_vote_")
+        assert receipt.is_quorum_satisfied is True
+        assert receipt.zk_snark_cac_voting_proof_hex.startswith("0xzk_snark_cac_aggregation_ballot_proof_")
+        assert receipt.paris_club_notary_sig.startswith("0xmldsa87_paris_club_secretariat_sig_")
+        assert proposal.status == "QUORUM_APPROVED"
+        assert bond.outstanding_principal_usdp == 2_000_000_000.0 * 0.75
+        assert bond.original_coupon_rate_pct == 5.0
+        assert bond.maturity_year == 2041
+
+        # 4. Telemetry
+        tel = engine.get_sovereign_debt_telemetry()
+        assert tel["registered_sovereign_bond_series"] >= 3
+        assert tel["total_debt_successfully_restructured_usdp"] >= 2_000_000_000.0
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
