@@ -19,7 +19,8 @@ import {
   Cpu,
   BatteryMedium,
   Server,
-  Award
+  Award,
+  Wallet
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -40,6 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
   alertCount,
 }) => {
   const tabs = [
+    { id: 'wallet', label: 'Wallet', icon: Wallet },
     { id: 'pipeline', label: 'CI/CD Pipeline', icon: Terminal, badge: pipelineRunning ? 'Building' : null },
     { id: 'node_heatmap', label: 'Prompt 139: Global Node Heatmap (3D)', icon: Globe, highlight: true },
     { id: 'valuation_2030', label: '2026–2030 $1.00 USD Road (AI Aayush Inst)', icon: Award, highlight: true },

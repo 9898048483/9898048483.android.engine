@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
+import { WalletPage } from './components/WalletPage';
 import { PipelineDashboard } from './components/PipelineDashboard';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { updateBalance, fetchBalance } from './db/ledgerService';
 import { AndroidArtifactCard } from './components/AndroidArtifactCard';
 import { ZeroTouchConsole } from './components/ZeroTouchConsole';
 import { TorOnionManager } from './components/TorOnionManager';
@@ -77,6 +80,17 @@ export default function App() {
 
   // Initial fetch on mount to load server state & existing debug.apk
   useEffect(() => {
+    const auth = getAuth();
+    onAuthStateChanged(auth, async (user) => {
+        if (user && user.uid) {
+          const bal = await fetchBalance(user.uid);
+          if (bal === 0) {
+              await updateBalance(user.uid, 1000);
+              console.log("Bonus awarded");
+          }
+        }
+      });
+      
     fetch('/api/pipeline/status')
       .then((res) => res.json())
       .then((data) => {
@@ -266,6 +280,7 @@ export default function App() {
 
       {/* Main View Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {activeTab === 'wallet' && <WalletPage />}
         {activeTab === 'pipeline' && (
           <PipelineDashboard
             pipeline={pipeline}
