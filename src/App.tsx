@@ -31,6 +31,12 @@ export default function App() {
   const [userEmail, setUserEmail] = useState<string>('india9898048483@gmail.com');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
+  const [balance, setBalance] = useState<number>(0);
+
+  const loadBalance = async (uid: string, email: string) => {
+    const bal = await fetchBalance(uid, email);
+    setBalance(bal);
+  };
 
   // Core Pipeline state
   const [pipeline, setPipeline] = useState<PipelineRun>({
@@ -81,13 +87,24 @@ export default function App() {
   // Initial fetch on mount to load server state & existing debug.apk
   useEffect(() => {
     const auth = getAuth();
-    onAuthStateChanged(auth, async (user) => {
+    let authHandled = false;
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
         if (user && user.uid) {
-          const bal = await fetchBalance(user.uid);
-          if (bal === 0) {
-              await updateBalance(user.uid, 1000);
-              console.log("Bonus awarded");
-          }
+          authHandled = true;
+          await loadBalance(user.uid, userEmail);
+        } else if (!authHandled) {
+          import('firebase/auth').then(({ signInAnonymously }) => {
+            signInAnonymously(auth).catch((error) => {
+              console.warn("Firebase Auth failed (likely Anonymous Auth disabled), falling back to mock local UID:", error);
+              // Fallback to local storage UID so the app can still function
+              let localUid = localStorage.getItem('mock_uid');
+              if (!localUid) {
+                localUid = 'mock_uid_' + Math.random().toString(36).substring(2, 15);
+                localStorage.setItem('mock_uid', localUid);
+              }
+              loadBalance(localUid, userEmail);
+            });
+          });
         }
       });
       
@@ -280,7 +297,7 @@ export default function App() {
 
       {/* Main View Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'wallet' && <WalletPage />}
+        {activeTab === 'wallet' && <WalletPage userEmail={userEmail} />}
         {activeTab === 'pipeline' && (
           <PipelineDashboard
             pipeline={pipeline}

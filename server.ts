@@ -10,12 +10,14 @@ import { fetchBalance, updateBalance } from './src/db/tokenUtils';
 import http from 'http';
 import { WebSocketServer } from 'ws';
 import tokenRouter from './server/routers/token_router.js';
+import webAuthnRouter from './server/routers/webAuthnRouter.js';
 
 const app = express();
 const PORT = 3000;
 
 app.use(express.json());
 app.use('/api/v1/token', tokenRouter);
+app.use('/api/v1/webauthn', webAuthnRouter);
 
 // In-memory state for DevSecOps & AI Secure Space telemetry
 let latestPipelineRun = {
