@@ -4406,6 +4406,58 @@ async function startServer() {
     console.error('Initial APK build step:', e);
   }
 
+  app.post('/api/v1/quantum/sign', async (req, res) => {
+    try {
+      const { algorithm, message, amount, destination_address, destination_chain } = req.body;
+      
+      let endpoint = '';
+      let payload = {};
+      
+      if (algorithm === 'ML-DSA-87') {
+        endpoint = 'http://127.0.0.1:8000/sign/mldsa';
+        payload = { message: message || 'default_message' };
+      } else if (algorithm === 'Falcon-1024') {
+        endpoint = 'http://127.0.0.1:8000/sign/falcon';
+        payload = {
+          sender: "user_wallet",
+          destination_chain: destination_chain || "ETHEREUM",
+          amount: amount || 0.0,
+          destination_address: destination_address || "0x00"
+        };
+      } else {
+        return res.status(400).json({ error: 'Unsupported algorithm' });
+      }
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      console.error('[Quantum Bridge Error]:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post('/api/v1/zk/generate-nullifier', async (req, res) => {
+    try {
+      const payload = req.body;
+      const response = await fetch('http://127.0.0.1:8000/zk/generate-nullifier', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      console.error('[ZK Mixer Error]:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({

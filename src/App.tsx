@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
+import { SyncManager } from './components/SyncManager';
 import { WalletPage } from './components/WalletPage';
+import { QuantumSignerPanel } from './components/QuantumSignerPanel';
 import { PipelineDashboard } from './components/PipelineDashboard';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { updateBalance, fetchBalance } from './db/ledgerService';
@@ -297,7 +299,12 @@ export default function App() {
 
       {/* Main View Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'wallet' && <WalletPage userEmail={userEmail} />}
+        {activeTab === 'wallet' && (
+          <div className="space-y-6">
+            <QuantumSignerPanel />
+            <WalletPage userEmail={userEmail} />
+          </div>
+        )}
         {activeTab === 'pipeline' && (
           <PipelineDashboard
             pipeline={pipeline}
@@ -403,6 +410,8 @@ export default function App() {
         userEmail={userEmail}
         onSaveEmail={(email) => setUserEmail(email)}
       />
+
+      <SyncManager />
 
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950 py-6 text-xs text-slate-500 text-center">

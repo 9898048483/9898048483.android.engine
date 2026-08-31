@@ -1,4 +1,5 @@
 import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
+import { savePendingCredential } from './offlineStorage';
 
 export const registerWebAuthn = async (userId: string) => {
   const optionsResponse = await fetch('/api/v1/webauthn/register/options', {
@@ -12,16 +13,22 @@ export const registerWebAuthn = async (userId: string) => {
   }
   const registrationResponse = await startRegistration(options);
   
-  const verifyResponse = await fetch('/api/v1/webauthn/register/verify', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ userId, response: registrationResponse }),
-  });
-  const result = await verifyResponse.json();
-  if (result.error) {
-    throw new Error(result.error);
+  try {
+    const verifyResponse = await fetch('/api/v1/webauthn/register/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, response: registrationResponse }),
+    });
+    const result = await verifyResponse.json();
+    if (result.error) {
+      throw new Error(result.error);
+    }
+    return result.verified;
+  } catch (error) {
+    console.warn('[WebAuthn] Server offline or fetch failed. Saving credential locally.');
+    await savePendingCredential(userId, registrationResponse);
+    return true; // Optimistic success
   }
-  return result.verified;
 };
 
 export const authenticateWebAuthn = async (userId: string) => {

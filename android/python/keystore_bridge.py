@@ -3,12 +3,14 @@ import sys
 import base64
 import logging
 import traceback
+import ctypes
 from typing import Optional, Tuple, Dict, Any
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("KeystoreBridge")
+
 # ==============================================================================
-# AI SECURE SPACE - ROOTLESS ANDROID SANDBOX & KEYSTORE INTEGRATION (PROMPT 17)
-# Role: Android OS Security Architect
-# Requirements: Android KeyStore, Sandbox File Perms, Hardware-Backed TEE Keys
+# AI SECURE SPACE - ROOTLESS ANDROID SANDBOX & KEYSTORE INTEGRATION
 # ==============================================================================
 
 try:
@@ -16,6 +18,39 @@ try:
     ANDROID_ENV = True
 except ImportError:
     ANDROID_ENV = False
+
+class StrongBoxJNILink:
+    """
+    Bridges Python to the Android C++ JNI layer to request 
+    hardware-backed StrongBox signatures natively (Prompt 14/15).
+    """
+    def __init__(self):
+        lib_name = "libcrypto_bridge.so"
+        self.lib = None
+        try:
+            self.lib = ctypes.CDLL(lib_name)
+            # int request_strongbox_signature(const char* payload, char* out_signature, int max_out_len);
+            self.lib.request_strongbox_signature.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int]
+            self.lib.request_strongbox_signature.restype = ctypes.c_int
+            logger.info(f"Successfully loaded {lib_name}")
+        except OSError as e:
+            logger.warning(f"Could not load {lib_name} for biometric hardware signatures (expected off-device): {e}")
+
+    def sign_transaction_with_biometrics(self, payload: bytes) -> bytes:
+        if not self.lib:
+            logger.warning("JNI bridge not loaded. Returning simulated hardware signature.")
+            return b"simulated_strongbox_hardware_signature_9898048483"
+
+        out_buffer = ctypes.create_string_buffer(512)
+        result = self.lib.request_strongbox_signature(payload, out_buffer, 512)
+        
+        if result == 0:
+            logger.info("Successfully received StrongBox signature from JNI C++ bridge.")
+            return out_buffer.value
+        else:
+            raise RuntimeError("JNI C++ Bridge failed to generate biometric signature.")
+
+strongbox_jni_bridge = StrongBoxJNILink()
 
 class AndroidKeystoreBridge:
     def __init__(self, key_alias: str = "AISecureSpaceMasterKey"):

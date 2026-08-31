@@ -67,8 +67,7 @@ router.post('/authenticate/options', async (req, res) => {
       rpID,
       allowCredentials: credential ? [{
         id: credential.credentialID,
-        type: 'public-key',
-        transports: credential.credentialDeviceType === 'singleDevice' ? ['internal'] : [],
+        transports: credential.credentialDeviceType === 'singleDevice' ? ['internal' as const] : [],
       }] : [],
     });
     

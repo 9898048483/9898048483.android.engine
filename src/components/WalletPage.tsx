@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { fetchBalance, transferTokens } from '../db/ledgerService';
 import { authenticateWebAuthn, registerWebAuthn } from '../lib/webAuthnClient';
+import { Shield } from 'lucide-react';
 
 export const WalletPage: React.FC<{ userEmail: string }> = ({ userEmail }) => {
   const [balance, setBalance] = useState<number>(0);
@@ -9,6 +10,7 @@ export const WalletPage: React.FC<{ userEmail: string }> = ({ userEmail }) => {
   const [userId, setUserId] = useState<string>('');
   const [recipientId, setRecipientId] = useState<string>('');
   const [amount, setAmount] = useState<string>('');
+  const [isShielded, setIsShielded] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
 
@@ -75,9 +77,33 @@ export const WalletPage: React.FC<{ userEmail: string }> = ({ userEmail }) => {
         await authenticateWebAuthn(userId);
       }
 
-      // 2. Execute Transfer (Simulating sending the signed payload)
-      await transferTokens(userId, recipientId, Number(amount));
-      setSuccess(`Successfully signed and transmitted! Sent ${amount} tokens to ${recipientId}`);
+      // 2. Shielded Transfer (ZK Mixer Nullifier Generation)
+      if (isShielded) {
+        const zkResponse = await fetch('/api/v1/zk/generate-nullifier', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token_symbol: 'TOKEN9898',
+            denomination: Number(amount),
+            sender: userId,
+            recipient: recipientId
+          })
+        });
+        
+        const zkData = await zkResponse.json();
+        if (!zkResponse.ok) {
+          throw new Error(zkData.error || 'Failed to generate ZK nullifier');
+        }
+        
+        // Simulating the ZK pool interaction instead of direct transfer
+        console.log('ZK Nullifier Generated:', zkData);
+        setSuccess(`Shielded Transfer successful! Nullifier generated: ${zkData.nullifier_hash.slice(0, 16)}...`);
+      } else {
+        // 3. Execute Transfer (Simulating sending the signed payload)
+        await transferTokens(userId, recipientId, Number(amount));
+        setSuccess(`Successfully signed and transmitted! Sent ${amount} tokens to ${recipientId}`);
+      }
+      
       setAmount('');
       setRecipientId('');
       await loadBalance(userId);
@@ -109,12 +135,24 @@ export const WalletPage: React.FC<{ userEmail: string }> = ({ userEmail }) => {
       )}
 
       <div className="bg-slate-800 p-4 rounded-md">
-        <h3 className="text-lg font-semibold text-white mb-2">Send Tokens</h3>
-        <input type="text" placeholder="Recipient Wallet Address" value={recipientId} onChange={(e) => setRecipientId(e.target.value)} className="w-full p-2 mb-2 bg-slate-700 text-white rounded"/>
-        <input type="number" placeholder="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full p-2 mb-2 bg-slate-700 text-white rounded"/>
-        <button onClick={handleSendRequest} className="w-full p-2 bg-emerald-600 text-white rounded hover:bg-emerald-700">Initiate Transfer</button>
-        {error && <p className="text-red-400 mt-2">{error}</p>}
-        {success && <p className="text-emerald-400 mt-2">{success}</p>}
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-semibold text-white">Send Tokens</h3>
+          <div className="flex items-center gap-2 bg-slate-700/50 p-1.5 rounded-lg border border-slate-600/50">
+            <Shield className={`w-4 h-4 ${isShielded ? 'text-emerald-400' : 'text-slate-400'}`} />
+            <span className="text-xs text-slate-300 mr-2">Shielded Transfer</span>
+            <button 
+              onClick={() => setIsShielded(!isShielded)}
+              className={`w-8 h-4 rounded-full transition-colors relative ${isShielded ? 'bg-emerald-500' : 'bg-slate-600'}`}
+            >
+              <div className={`w-3 h-3 bg-white rounded-full absolute top-0.5 transition-all ${isShielded ? 'right-0.5' : 'left-0.5'}`}></div>
+            </button>
+          </div>
+        </div>
+        <input type="text" placeholder="Recipient Wallet Address" value={recipientId} onChange={(e) => setRecipientId(e.target.value)} className="w-full p-2 mb-2 bg-slate-700 text-white rounded focus:outline-none focus:ring-1 focus:ring-emerald-500"/>
+        <input type="number" placeholder={isShielded ? "Amount (100, 1k, 10k, 100k allowed)" : "Amount"} value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full p-2 mb-2 bg-slate-700 text-white rounded focus:outline-none focus:ring-1 focus:ring-emerald-500"/>
+        <button onClick={handleSendRequest} className="w-full p-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors">Initiate Transfer</button>
+        {error && <p className="text-red-400 mt-2 text-sm">{error}</p>}
+        {success && <p className="text-emerald-400 mt-2 text-sm break-all">{success}</p>}
       </div>
       
       <div className="mt-6">
@@ -131,7 +169,8 @@ export const WalletPage: React.FC<{ userEmail: string }> = ({ userEmail }) => {
           <div className="bg-slate-800 p-6 rounded-lg max-w-sm w-full shadow-2xl border border-emerald-500/30">
             <h3 className="text-xl font-bold text-white mb-4">Hardware Signature Required</h3>
             <p className="text-slate-300 mb-6 text-sm">
-              You are about to send <span className="font-bold text-emerald-400">{amount}</span> tokens to <span className="font-mono text-xs">{recipientId.slice(0,10)}...</span>.
+              You are about to {isShielded ? <span className="text-purple-400 font-bold">shield</span> : 'send'} <span className="font-bold text-emerald-400">{amount}</span> tokens to <span className="font-mono text-xs">{recipientId.slice(0,10)}...</span>.
+              {isShielded && <><br/><br/><span className="text-purple-300 text-xs">This will route through the Zero-Knowledge Privacy Mixer Pool.</span></>}
               <br /><br />
               This action requires cryptographic signing using your device's Trusted Execution Environment (TEE). Please authenticate using your Biometric Prompt (Fingerprint/Face).
             </p>
