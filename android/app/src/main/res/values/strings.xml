@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">AI Secure Space</string>
+    <string name="title_activity_main">AI Secure Space Sovereign Node</string>
+    <string name="biometric_prompt_title">Biometric Authentication</string>
+    <string name="biometric_prompt_subtitle">Verify sovereign identity via hardware enclave</string>
+    <string name="biometric_prompt_description">Touch the fingerprint sensor or look at the camera to authenticate</string>
+</resources>

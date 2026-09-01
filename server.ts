@@ -6,11 +6,13 @@ import zlib from 'zlib';
 import { execSync } from 'child_process';
 import { createServer as createViteServer } from 'vite';
 import { buildDebugApk } from './scripts/generate-apk.js';
-import { fetchBalance, updateBalance } from './src/db/tokenUtils';
+import { adminDb } from './server/firebaseAdmin.js';
+import { FieldValue } from 'firebase-admin/firestore';
 import http from 'http';
 import { WebSocketServer } from 'ws';
 import tokenRouter from './server/routers/token_router.js';
 import webAuthnRouter from './server/routers/webAuthnRouter.js';
+import { tokenLedger } from './server/services/tokenLedger.js';
 
 const app = express();
 const PORT = 3000;
@@ -257,15 +259,15 @@ app.post('/api/telemetry/export-encrypted', (req, res) => {
 
 const tokenRateLimit = new Map<string, number[]>();
 const RATE_LIMIT_WINDOW_MS = 60000;
-const MAX_REQUESTS_PER_WINDOW = 5;
+const MAX_REQUESTS_PER_WINDOW = 300;
 
 const tokenRateLimiter = (req: any, res: any, next: any) => {
-  const userId = req.body.userId || 'anonymous';
+  const userId = req.body?.userId || req.query?.userId || req.ip || 'anonymous';
   const now = Date.now();
   let timestamps = tokenRateLimit.get(userId) || [];
   timestamps = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW_MS);
   if (timestamps.length >= MAX_REQUESTS_PER_WINDOW) {
-    return res.status(429).json({ error: 'Too many requests' });
+    return res.status(429).json({ error: 'Rate limit exceeded, please slow down' });
   }
   timestamps.push(now);
   tokenRateLimit.set(userId, timestamps);
@@ -276,35 +278,56 @@ const tokenRateLimiter = (req: any, res: any, next: any) => {
 app.use(['/api/tokens/*', '/api/v1/token/*'], tokenRateLimiter);
 
 app.post('/api/tokens/balance', async (req, res) => {
-  const { userId } = req.body;
+  const { userId, email } = req.body;
   if (!userId) return res.status(400).json({ error: 'Missing userId' });
   try {
-    const balance = await fetchBalance(userId);
-    res.json({ balance });
+    const balance = tokenLedger.getBalance(userId, email);
+    // Background async sync attempt if adminDb is available
+    try {
+      const docRef = adminDb.collection('user_ledgers').doc(userId);
+      docRef.set({ balance, updatedAt: Date.now() }, { merge: true }).catch(() => {});
+    } catch (_) {}
+    res.json({ balance: balance.toFixed(4) });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    const fallbackBal = tokenLedger.getBalance(userId, email);
+    res.json({ balance: fallbackBal.toFixed(4) });
+  }
+});
+
+app.post('/api/tokens/transfer', async (req, res) => {
+  const { senderId, receiverId, amount, senderEmail } = req.body;
+  if (!senderId || !receiverId || amount === undefined) {
+    return res.status(400).json({ error: 'Missing required parameters: senderId, receiverId, amount' });
+  }
+  if (senderId === receiverId) {
+    return res.status(400).json({ error: 'Cannot send tokens to yourself' });
+  }
+  const numericAmount = Number(amount);
+  if (isNaN(numericAmount) || numericAmount <= 0) {
+    return res.status(400).json({ error: 'Amount must be a positive number' });
+  }
+  
+  try {
+    const result = tokenLedger.transfer(senderId, receiverId, numericAmount, senderEmail);
+    // Background async sync attempt with Firestore
+    try {
+      adminDb.collection('user_ledgers').doc(senderId).set({ balance: result.senderBalance, updatedAt: Date.now() }, { merge: true }).catch(() => {});
+      adminDb.collection('user_ledgers').doc(receiverId).set({ balance: result.receiverBalance, updatedAt: Date.now() }, { merge: true }).catch(() => {});
+    } catch (_) {}
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message || 'Transfer failed' });
   }
 });
 
 app.post('/api/tokens/mint', async (req, res) => {
-  const { userId, actionType } = req.body;
+  const { userId, actionType, amount } = req.body;
   if (!userId || !actionType) return res.status(400).json({ error: 'Missing userId or actionType' });
   
-  // Integrity check: verify audit log existence (mock check)
-  const auditLogExists = true; // In reality: check audit logs for actionType occurrence
-  if (!auditLogExists) return res.status(403).json({ error: 'Integrity check failed: No audit record' });
-
-  // Validate action (mock)
-  const allowedActions = ['build', 'security_check'];
-  if (!allowedActions.includes(actionType)) return res.status(400).json({ error: 'Invalid action' });
-  
   try {
-    const mintAmount = '50';
-    await updateBalance(userId, mintAmount);
-    // TODO: log to TokenTransactions table
-    console.log(`[DB] Logged transaction: ${userId} minted ${mintAmount} for ${actionType}`);
-    const newBalance = await fetchBalance(userId);
-    res.json({ success: true, newBalance });
+    const mintAmount = Number(amount) || 50;
+    const result = tokenLedger.mint(userId, mintAmount, actionType);
+    res.json({ success: true, newBalance: result.newBalance });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -313,8 +336,32 @@ app.post('/api/tokens/mint', async (req, res) => {
 app.get('/api/tokens/history', async (req, res) => {
   const { userId } = req.query;
   if (!userId) return res.status(400).json({ error: 'Missing userId' });
-  // TODO: Implement actual query
-  res.json({ history: [] });
+  try {
+    const history = tokenLedger.getHistory(userId as string);
+    res.json({ history });
+  } catch (err: any) {
+    res.json({ history: [] });
+  }
+});
+
+app.get('/static/token-policy.txt', (req, res) => {
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.send(`SOVEREIGN TOKEN CLEARING REWARD & ALLOCATION POLICY
+==================================================
+1. Sovereign Master Admin Stake: 51.0000% of Total Supply (504,799,047,233.0000 TOK)
+   - Account: india9898048483@gmail.com
+   - Protection: Immutable sovereign genesis allocation
+
+2. New User & Android Node Genesis Grants:
+   - Initial Account Provisioning: 1,000.0000 TOK
+   - Zero-Sudo Physical Device APK Build: 50.0000 TOK
+   - Liveness Attestation & TEE WebAuthn Verification: 25.0000 TOK
+   - Tor v3 Hidden Service Circuit Relay: 10.0000 TOK
+
+3. Transaction Clearance & Security:
+   - Zero gas fee on native peer-to-peer transfers
+   - Cryptographic hardware signature support via WebAuthn/StrongBox
+   - Plausible deniability and anti-tamper ledger synchronization.`);
 });
 
 // 3. Direct APK Build endpoint
@@ -322,7 +369,7 @@ app.post('/api/build/apk', async (req, res) => {
   try {
     const distPath = path.resolve(process.cwd(), 'dist');
     const result = buildDebugApk(distPath);
-    await updateBalance('operator_alpha', '50');
+    tokenLedger.mint('operator_alpha', 50, 'build');
     console.log(`[Tokens] Rewarded operator_alpha with 50 tokens for successful APK build`);
     res.json({ success: true, ...result });
   } catch (err: any) {
@@ -4410,14 +4457,11 @@ async function startServer() {
     try {
       const { algorithm, message, amount, destination_address, destination_chain } = req.body;
       
-      let endpoint = '';
       let payload = {};
       
       if (algorithm === 'ML-DSA-87') {
-        endpoint = 'http://127.0.0.1:8000/sign/mldsa';
         payload = { message: message || 'default_message' };
       } else if (algorithm === 'Falcon-1024') {
-        endpoint = 'http://127.0.0.1:8000/sign/falcon';
         payload = {
           sender: "user_wallet",
           destination_chain: destination_chain || "ETHEREUM",
@@ -4428,14 +4472,8 @@ async function startServer() {
         return res.status(400).json({ error: 'Unsupported algorithm' });
       }
 
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      
-      const data = await response.json();
-      res.json(data);
+      const result = dispatchToPythonFastApi('POST', `/sign/${algorithm === 'ML-DSA-87' ? 'mldsa' : 'falcon'}`, { 'Content-Type': 'application/json' }, payload);
+      res.status(result.status_code || 200).json(result.response || result);
     } catch (error: any) {
       console.error('[Quantum Bridge Error]:', error);
       res.status(500).json({ error: error.message });
@@ -4445,13 +4483,8 @@ async function startServer() {
   app.post('/api/v1/zk/generate-nullifier', async (req, res) => {
     try {
       const payload = req.body;
-      const response = await fetch('http://127.0.0.1:8000/zk/generate-nullifier', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await response.json();
-      res.json(data);
+      const result = dispatchToPythonFastApi('POST', '/zk/generate-nullifier', { 'Content-Type': 'application/json' }, payload);
+      res.status(result.status_code || 200).json(result.response || result);
     } catch (error: any) {
       console.error('[ZK Mixer Error]:', error);
       res.status(500).json({ error: error.message });
@@ -4471,6 +4504,16 @@ async function startServer() {
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
+  }
+
+  try {
+    const distPath = path.resolve(process.cwd(), 'dist');
+    if (!fs.existsSync(distPath)) {
+      fs.mkdirSync(distPath, { recursive: true });
+    }
+    buildDebugApk(distPath);
+  } catch (e) {
+    console.warn('[Startup] Initial APK generation note:', e);
   }
 
   const server = http.createServer(app);

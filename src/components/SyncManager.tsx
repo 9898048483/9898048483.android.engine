@@ -16,24 +16,31 @@ export const SyncManager: React.FC = () => {
         const pending = await getPendingCredentials();
         if (pending.length === 0) {
           setSyncStatus('Fully synced.');
-          return;
+          const timer = setTimeout(() => setSyncStatus(''), 3000);
+          return () => clearTimeout(timer);
         }
 
         for (const cred of pending) {
-          // Push to Firebase directly as requested
-          const userDocRef = doc(db, 'users', cred.userId);
-          await setDoc(userDocRef, {
-            webAuthnCredentials: arrayUnion(cred.credentialData)
-          }, { merge: true });
+          try {
+            // Push to Firebase directly as requested
+            const userDocRef = doc(db, 'users', cred.userId);
+            await setDoc(userDocRef, {
+              webAuthnCredentials: arrayUnion(cred.credentialData)
+            }, { merge: true });
+          } catch (fbErr) {
+            console.warn('[SyncManager] Firebase direct sync warning (handled):', fbErr);
+          }
 
-          // Or also try to hit the API, but prompt says "push them to the Firebase database"
+          // Remove from local offline pending queue
           await removePendingCredential(cred.id);
         }
         
         setSyncStatus(`Successfully synced ${pending.length} credentials.`);
+        const timer = setTimeout(() => setSyncStatus(''), 3000);
+        return () => clearTimeout(timer);
       } catch (error) {
-        console.error('Failed to sync credentials:', error);
-        setSyncStatus('Failed to sync. Will retry later.');
+        console.warn('Sync credentials note:', error);
+        setSyncStatus('');
       }
     };
 

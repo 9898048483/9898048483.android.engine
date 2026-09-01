@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} { 
+      allow read, write: if false; 
+    }
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidUser(data) {
+      return (
+        (!('email' in data) || (data.email is string && data.email.size() <= 200)) &&
+        (!('role' in data) || (data.role is string && data.role.size() <= 100)) &&
+        (!('updatedAt' in data) || data.updatedAt is number) &&
+        (!('webAuthnCredentials' in data) || data.webAuthnCredentials is list)
+      );
+    }
+    function isValidLedger(data) {
+      return (
+        'balance' in data && data.balance is number
+      );
+    }
+    match /users/{userId} {
+      allow get: if isSignedIn() && request.auth.uid == userId;
+      allow list: if isSignedIn() && resource.data.email == request.auth.token.email;
+      
+      allow create: if isSignedIn() 
+        && request.auth.uid == userId 
+        && isValidId(userId)
+        && isValidUser(incoming());
+        
+      allow update: if isSignedIn() 
+        && request.auth.uid == userId 
+        && isValidId(userId)
+        && isValidUser(incoming());
+        
+      allow delete: if false;
+    }
+    match /user_ledgers/{ledgerId} {
+      // Allow any signed in user to read any ledger to support P2P transfers
+      allow get: if isSignedIn() && isValidId(ledgerId);
+      allow list: if false;
+      
+      // Clients can no longer update ledgers directly; server logic handles it securely.
+      allow create, update, delete: if false;
+    }
+  }
+}

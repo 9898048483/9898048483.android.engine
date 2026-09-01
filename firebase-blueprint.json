@@ -1,0 +1,52 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with RBAC role",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "description": "User's email address",
+          "maxLength": 200
+        },
+        "role": {
+          "type": "string",
+          "description": "RBAC Role",
+          "maxLength": 100
+        },
+        "updatedAt": {
+          "type": "number",
+          "description": "Last update timestamp"
+        },
+        "webAuthnCredentials": {
+          "type": "array",
+          "description": "Array of WebAuthn credentials"
+        }
+      },
+      "required": ["role"]
+    },
+    "UserLedger": {
+      "title": "User Ledger",
+      "description": "Ledger containing token balance for a user",
+      "type": "object",
+      "properties": {
+        "balance": {
+          "type": "number",
+          "description": "Token balance"
+        }
+      },
+      "required": ["balance"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles and RBAC settings"
+    },
+    "user_ledgers/{ledgerId}": {
+      "schema": { "$ref": "#/entities/UserLedger" },
+      "description": "Ledgers containing token balances for each user"
+    }
+  }
+}

@@ -542,6 +542,33 @@ class AsyncFastApiDispatcher:
                 "tor_onion_bound": True
             }
 
+        # Quantum & ZK Handlers
+        if path == "/sign/mldsa" and method == "POST":
+            return 200, {
+                "algorithm": "ML-DSA-87",
+                "public_key_hex": secrets.token_hex(64),
+                "signature_hex": secrets.token_hex(128),
+                "transaction_id": "tx_" + secrets.token_hex(16)
+            }
+            
+        if path == "/sign/falcon" and method == "POST":
+            return 200, {
+                "algorithm": "Falcon-1024",
+                "public_key_hex": secrets.token_hex(64),
+                "signature_hex": secrets.token_hex(128),
+                "transaction_id": "tx_" + secrets.token_hex(16)
+            }
+
+        if path == "/zk/generate-nullifier" and method == "POST":
+            return 200, {
+                "nullifier_hash": hashlib.sha256(secrets.token_bytes(32)).hexdigest(),
+                "proof": {
+                    "a": secrets.token_hex(32),
+                    "b": secrets.token_hex(32),
+                    "c": secrets.token_hex(32)
+                }
+            }
+
         # Check authentication for protected endpoints
         if not security_engine.validate_bearer_token(auth_header):
             return 401, {

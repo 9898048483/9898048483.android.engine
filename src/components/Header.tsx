@@ -119,9 +119,15 @@ export const Header: React.FC<HeaderProps> = ({
                 G
               </div>
               <span className="hidden sm:inline max-w-[140px] truncate">{userEmail}</span>
-              <span className="text-emerald-400 text-[10px] font-semibold uppercase px-1 py-0.5 bg-emerald-950/60 rounded border border-emerald-800/60">
-                Admin
-              </span>
+              {userEmail.toLowerCase().includes('india9898048483') ? (
+                <span className="text-amber-300 text-[10px] font-bold px-1.5 py-0.5 bg-amber-950/70 rounded border border-amber-600/60 flex items-center gap-1">
+                  51% STAKE
+                </span>
+              ) : (
+                <span className="text-emerald-400 text-[10px] font-semibold uppercase px-1 py-0.5 bg-emerald-950/60 rounded border border-emerald-800/60">
+                  Node (1k)
+                </span>
+              )}
             </button>
           </div>
         </div>
