@@ -1,0 +1,47 @@
+# ==============================================================================
+# Dockerfile for Building Android APK with Embedded React/Vite Web Assets
+# ==============================================================================
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV ANDROID_SDK_ROOT=/opt/android-sdk
+ENV PATH=${PATH}:${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin:${ANDROID_SDK_ROOT}/platform-tools
+
+# Install base dependencies, OpenJDK 17, and Node.js
+RUN apt-get update && apt-get install -y \
+    openjdk-17-jdk \
+    curl \
+    wget \
+    unzip \
+    git \
+    build-essential \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Android Commandline Tools & SDK
+RUN mkdir -p ${ANDROID_SDK_ROOT}/cmdline-tools \
+    && wget -q https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip -O /tmp/cmdline-tools.zip \
+    && unzip -q /tmp/cmdline-tools.zip -d ${ANDROID_SDK_ROOT}/cmdline-tools \
+    && mv ${ANDROID_SDK_ROOT}/cmdline-tools/cmdline-tools ${ANDROID_SDK_ROOT}/cmdline-tools/latest \
+    && rm /tmp/cmdline-tools.zip
+
+# Accept licenses and install platform tools
+RUN yes | sdkmanager --licenses \
+    && sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+
+WORKDIR /workspace
+
+# Copy package manifests and install npm dependencies
+COPY package*.json ./
+RUN npm ci
+
+# Copy entire project source
+COPY . .
+
+# Build React web bundle and build Android APK
+RUN npm run build \
+    && node scripts/bundle-hybrid-apk.js \
+    && cd android && chmod +x gradlew && ./gradlew assembleRelease
+
+CMD ["cp", "android/app/build/outputs/apk/release/app-release.apk", "/output/"]

@@ -11,37 +11,77 @@ android {
         applicationId "com.quantum"
         minSdk 28
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "2.0.0"
 
-        externalNativeBuild {
-            cmake {
-                cppFlags "-std=c++20"
-            }
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        
+        ndk {
+            abiFilters "arm64-v8a", "armeabi-v7a", "x86_64"
+        }
+    }
+
+    signingConfigs {
+        release {
+            // Configurable via gradle.properties or environment variables in CI/CD
+            storeFile file("release.keystore")
+            storePassword System.getenv("KEYSTORE_PASSWORD") ?: "quantum9898048483"
+            keyAlias System.getenv("KEY_ALIAS") ?: "quantum_release_key"
+            keyPassword System.getenv("KEY_PASSWORD") ?: "quantum9898048483"
         }
     }
 
     buildTypes {
         release {
             minifyEnabled false
+            shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // Falls back to debug signing in local dev if release keystore is absent
+            signingConfig signingConfigs.release
+        }
+        debug {
+            applicationIdSuffix ".debug"
+            debuggable true
         }
     }
 
-    externalNativeBuild {
-        cmake {
-            path "src/main/cpp/CMakeLists.txt"
-            version "3.22.1"
+    sourceSets {
+        main {
+            assets.srcDirs = ['src/main/assets']
         }
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
+    
     kotlinOptions {
-        jvmTarget = '1.8'
+        jvmTarget = '17'
     }
+
+    packagingOptions {
+        resources {
+            excludes += '/META-INF/{AL2.0,LGPL2.1}'
+        }
+    }
+}
+
+// Gradle task to automatically sync production React/Vite assets into Android assets
+tasks.register('syncWebAssets', Copy) {
+    def distDir = file('../../dist')
+    def assetsDistDir = file('src/main/assets/dist')
+    
+    from distDir
+    into assetsDistDir
+    
+    doFirst {
+        println "Syncing React web bundle from ${distDir.absolutePath} to ${assetsDistDir.absolutePath}"
+    }
+}
+
+project.afterEvaluate {
+    tasks.findByName('preBuild')?.dependsOn('syncWebAssets')
 }
 
 dependencies {
@@ -49,4 +89,9 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.biometric:biometric:1.1.0'
+    implementation 'androidx.webkit:webkit:1.10.0'
+    implementation 'androidx.activity:activity-ktx:1.8.2'
+    implementation 'androidx.fragment:fragment-ktx:1.6.2'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
 }

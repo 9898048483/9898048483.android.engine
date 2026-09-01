@@ -8,6 +8,8 @@
     "build": "vite build && node scripts/generate-apk.js && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
     "build:apk": "node scripts/generate-apk.js",
+    "build:hybrid-apk": "node scripts/bundle-hybrid-apk.js",
+    "build:full-apk": "vite build && node scripts/bundle-hybrid-apk.js",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"

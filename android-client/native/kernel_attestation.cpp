@@ -1,93 +1,83 @@
-/**
- * Android Native Kernel-Level Hardware Security Attestation Engine
- * File: android-client/native/kernel_attestation.cpp
- *
- * Architecture:
- * - Native C++ kernel-level integrity checking engine without Java framework wrappers.
- * - Core Checks:
- *   1. Linux Kernel Boot State & cmdline integrity (/proc/cmdline)
- *   2. SELinux Enforcing Status (/sys/fs/selinux/enforce)
- *   3. Root-hide detection (KernelSU, APatch, Magisk mount namespaces)
- *   4. Hardware Keystore / StrongBox root of trust via direct ioctl / keymaster HAL.
- */
-
-#include <jni.h>
-#include <string>
-#include <fstream>
-#include <sstream>
-#include <vector>
-#include <sys/stat.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
+#include <sys/ptrace.h>
+#include <sys/stat.h>
 #include <fcntl.h>
+#include <android/log.h>
 
-extern "C" {
+#define LOG_TAG "KernelAttestation"
+#define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 
-struct KernelAttestationResult {
-    bool is_selinux_enforcing;
-    bool is_boot_locked;
-    bool is_root_tampered;
-    bool is_kernelsu_detected;
-    bool is_apatch_detected;
-    int integrity_score_pct;
-};
+/**
+ * Kernel Attestation & Anti-Debugging Enclave
+ * Proactively verifies environment integrity before sensitive cryptographic operations.
+ */
+class KernelAttestationGuard {
+public:
+    /**
+     * Checks if current process is being traced/debugged via TracerPid in /proc/self/status
+     */
+    static bool isDebuggerAttached() {
+        FILE* fp = fopen("/proc/self/status", "r");
+        if (!fp) return false;
 
-static bool check_file_exists(const std::string& path) {
-    struct stat buffer;
-    return (stat(path.c_str(), &buffer) == 0);
-}
+        char line[256];
+        int tracerPid = 0;
 
-static bool is_selinux_enforcing_native() {
-    std::ifstream selinux_file("/sys/fs/selinux/enforce");
-    if (selinux_file.is_open()) {
-        char status;
-        selinux_file >> status;
-        return status == '1';
-    }
-    return false;
-}
+        while (fgets(line, sizeof(line), fp)) {
+            if (strncmp(line, "TracerPid:", 10) == 0) {
+                tracerPid = atoi(&line[10]);
+                break;
+            }
+        }
+        fclose(fp);
 
-static bool check_kernelsu_apatch_tampering() {
-    // Check known root / hook binaries and proc mounts
-    std::vector<std::string> suspicious_paths = {
-        "/system/bin/su",
-        "/system/xbin/su",
-        "/data/adb/ksud",
-        "/data/adb/apatch",
-        "/data/adb/magisk",
-        "/dev/ksu"
-    };
-
-    for (const auto& path : suspicious_paths) {
-        if (check_file_exists(path)) {
+        if (tracerPid != 0) {
+            LOGW("Security Alert: Debugger/Tracer attached! TracerPid: %d", tracerPid);
             return true;
         }
+        return false;
     }
-    return false;
-}
 
-JNIEXPORT jstring JNICALL
-Java_com_token9898_security_NativeKernelAttestation_auditKernelState(
-        JNIEnv* env,
-        jobject /* this */) {
+    /**
+     * Self-attachment check: Prevents external ptrace attachments
+     */
+    static bool denyPtraceAttachment() {
+        if (ptrace(PTRACE_TRACEME, 0, 1, 0) < 0) {
+            LOGW("Security Alert: ptrace TRACEME rejected (Debugger already hooked).");
+            return false;
+        }
+        return true;
+    }
 
-    bool selinux = is_selinux_enforcing_native();
-    bool root_tamper = check_kernelsu_apatch_tampering();
-    bool boot_locked = selinux && !root_tamper;
+    /**
+     * Detects common root / Magisk / Frida hooking binaries in system paths
+     */
+    static bool isDeviceCompromised() {
+        const char* suspectPaths[] = {
+            "/system/app/Superuser.apk",
+            "/sbin/su",
+            "/system/bin/su",
+            "/system/xbin/su",
+            "/data/local/xbin/su",
+            "/data/local/bin/su",
+            "/system/sd/xbin/su",
+            "/system/bin/failsafe/su",
+            "/data/local/su",
+            "/data/adb/magisk",
+            "/data/local/tmp/frida-server"
+        };
 
-    int score = 100;
-    if (!selinux) score -= 40;
-    if (root_tamper) score -= 60;
-    if (score < 0) score = 0;
-
-    std::stringstream ss;
-    ss << "{"
-       << "\"selinux_enforcing\":" << (selinux ? "true" : "false") << ","
-       << "\"root_tampered\":" << (root_tamper ? "true" : "false") << ","
-       << "\"boot_locked\":" << (boot_locked ? "true" : "false") << ","
-       << "\"hardware_integrity_score\":" << score
-       << "}";
-
-    return env->NewStringUTF(ss.str().c_str());
-}
-
-}
+        for (size_t i = 0; i < sizeof(suspectPaths) / sizeof(suspectPaths[0]); ++i) {
+            struct stat sb;
+            if (stat(suspectPaths[i], &sb) == 0) {
+                LOGW("Security Warning: Root/Hooking artifact detected at %s", suspectPaths[i]);
+                return true;
+            }
+        }
+        return false;
+    }
+};
