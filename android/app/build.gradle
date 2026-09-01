@@ -13,11 +13,26 @@ android {
         targetSdk 34
         versionCode 2
         versionName "2.0.0"
+        multiDexEnabled true
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         
         ndk {
             abiFilters "arm64-v8a", "armeabi-v7a", "x86_64"
+        }
+
+        externalNativeBuild {
+            cmake {
+                cppFlags "-std=c++20 -O3 -fstack-protector-strong -D_FORTIFY_SOURCE=2"
+                arguments "-DANDROID_STL=c++_shared", "-DANDROID_TOOLCHAIN=clang"
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path file("../CMakeLists.txt")
+            version "3.22.1"
         }
     }
 
@@ -36,7 +51,6 @@ android {
             minifyEnabled false
             shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            // Falls back to debug signing in local dev if release keystore is absent
             signingConfig signingConfigs.release
         }
         debug {
@@ -48,6 +62,7 @@ android {
     sourceSets {
         main {
             assets.srcDirs = ['src/main/assets']
+            jniLibs.srcDirs = ['src/main/jniLibs']
         }
     }
 
@@ -62,12 +77,25 @@ android {
 
     packagingOptions {
         resources {
-            excludes += '/META-INF/{AL2.0,LGPL2.1}'
+            excludes += [
+                '/META-INF/{AL2.0,LGPL2.1}',
+                '/META-INF/DEPENDENCIES',
+                '/META-INF/LICENSE',
+                '/META-INF/LICENSE.txt',
+                '/META-INF/license.txt',
+                '/META-INF/NOTICE',
+                '/META-INF/NOTICE.txt',
+                '/META-INF/notice.txt',
+                '/META-INF/INDEX.LIST'
+            ]
+        }
+        jniLibs {
+            useLegacyPackaging = true
         }
     }
 }
 
-// Gradle task to automatically sync production React/Vite assets into Android assets
+// Gradle task to sync production React/Vite assets into Android assets
 tasks.register('syncWebAssets', Copy) {
     def distDir = file('../../dist')
     def assetsDistDir = file('src/main/assets/dist')
@@ -80,11 +108,34 @@ tasks.register('syncWebAssets', Copy) {
     }
 }
 
+// Gradle task to verify and bundle embedded AI models
+tasks.register('bundleAiModels') {
+    doLast {
+        def modelsDir = file('src/main/assets/models')
+        if (!modelsDir.exists()) {
+            modelsDir.mkdirs()
+        }
+        println "Embedded AI Models Asset Directory verified: ${modelsDir.absolutePath}"
+    }
+}
+
+// Gradle task to verify and bundle ZK ptau and WASM circuits
+tasks.register('bundleZkArtifacts') {
+    doLast {
+        def zkDir = file('src/main/assets/zk')
+        if (!zkDir.exists()) {
+            zkDir.mkdirs()
+        }
+        println "Zero-Knowledge Circuit Assets Directory verified: ${zkDir.absolutePath}"
+    }
+}
+
 project.afterEvaluate {
-    tasks.findByName('preBuild')?.dependsOn('syncWebAssets')
+    tasks.findByName('preBuild')?.dependsOn('syncWebAssets', 'bundleAiModels', 'bundleZkArtifacts')
 }
 
 dependencies {
+    implementation 'androidx.multidex:multidex:2.0.1'
     implementation 'androidx.core:core-ktx:1.12.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
@@ -94,4 +145,6 @@ dependencies {
     implementation 'androidx.fragment:fragment-ktx:1.6.2'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
 }
+

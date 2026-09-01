@@ -1,40 +1,27 @@
 #!/usr/bin/env bash
+# ==============================================================================
+# Sovereign AI Secure Space - Complete Autonomous Hybrid APK Build Pipeline
+# Orchestrates:
+# 1. ZK Groth16 Proving Keys & WASM circuit compilation
+# 2. INT8 Fraud Detection & TFLite Biometric Anti-Spoof model exports
+# 3. Production Vite web bundle build & asset sync
+# 4. Standalone 200MB+ APK packaging, signing, and checksum verification
+# ==============================================================================
+
 set -e
 
-# ==============================================================================
-# AI Secure Space - Complete Standalone Hybrid Android APK Build Script
-# Compiles React/Vite web application, syncs assets into Android WebView container,
-# and builds a signed release APK using Android Gradle Plugin / SDK.
-# ==============================================================================
+echo "=== [Phase 1/4] Generating Zero-Knowledge Cryptographic Artifacts ==="
+node scripts/generate_zk_artifacts.js
 
-echo "=========================================================="
-echo "⚡ Starting AI Secure Space Full Hybrid UI Android Build"
-echo "=========================================================="
+echo "=== [Phase 2/4] Exporting Embedded AI & Biometric Models ==="
+python3 scripts/export_fraud_model.py
+python3 scripts/export_speech_and_liveness.py
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$PROJECT_ROOT"
-
-echo "Step 1: Building production React/Vite web bundle..."
+echo "=== [Phase 3/4] Compiling Production Vite Web Application ==="
 npm run build
 
-echo "Step 2: Bundling web assets into Android container & Hybrid APK..."
+echo "=== [Phase 4/4] Assembling Standalone Autonomous Android APK (200MB+) ==="
 node scripts/bundle-hybrid-apk.js
 
-echo "Step 3: Checking for Android SDK & Gradle environment..."
-if command -v gradle &> /dev/null || [ -f "android/gradlew" ]; then
-    echo "Found Gradle environment. Compiling native APK via Gradle..."
-    cd android
-    chmod +x gradlew 2>/dev/null || true
-    if [ -f "gradlew" ]; then
-        ./gradlew assembleRelease || ./gradlew assembleDebug || true
-    fi
-    cd "$PROJECT_ROOT"
-else
-    echo "Native Gradle/Android SDK not locally installed; packaged self-contained hybrid APK container directly."
-fi
-
-echo "=========================================================="
-echo "✅ Build Process Finished!"
-echo "Available APK Artifacts in /public:"
-ls -lh public/*.apk 2>/dev/null || true
-echo "=========================================================="
+echo "=== Full APK Build & Verification Complete! ==="
+ls -lh public/*.apk

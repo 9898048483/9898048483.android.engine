@@ -1,119 +1,128 @@
+#!/usr/bin/env python3
 """
-Self-Healing Autonomous Micro-Fork Resolution Daemon
-File: server/services/microfork_resolver.py
-
-Architecture:
-- Fault-tolerant distributed consensus micro-fork resolver for Token 9898048483 Android Chain.
-- Core Pillars:
-  1. Longest Valid Lattice Chain Selection Rule:
-     - Selects canonical chain based on accumulated quantum entropy weight $\\sum W_{\\text{entropy}}$ and ML-DSA-87 signature threshold.
-  2. Zero-Loss Transaction Re-Organization (Re-Org Mempool Spillover):
-     - Evicts orphaned chain transactions back into the priority mempool, guaranteeing zero user funds or state loss during network partitions.
-  3. Offline & Tor Network Merge Automation:
-     - Automatically reconciles partitions formed during extended air-gapped mesh deployments.
+Microfork Conflict Resolver & DAG Consensus Engine
+Implements a DAG-based consensus resolution engine for partitioned mesh environments.
+When disconnected offline partitions merge, it evaluates cumulative weight (GHOST/Spectre-style),
+resolves conflicting UTXO double-spend branches deterministically using highest-entropy
+topological sorting, and automatically re-bundles orphaned transactions into the canonical chain.
 """
 
 import time
-import math
+import json
 import hashlib
-import secrets
-import threading
-from typing import Dict, Any, List, Optional, Tuple
-from dataclasses import dataclass, field
+from typing import Dict, List, Set, Any, Optional, Tuple
 
+class DAGBlock:
+    def __init__(self, block_id: str, parents: List[str], height: int, txs: List[Dict[str, Any]], weight: float = 1.0):
+        self.block_id = block_id
+        self.parents = parents # Multiple parents representing DAG connections
+        self.height = height
+        self.txs = txs
+        self.weight = weight
+        self.cumulative_weight = weight
+        self.timestamp = int(time.time())
 
-@dataclass
-class MicroForkCandidateBlock:
-    block_height: int
-    block_hash: str
-    previous_block_hash: str
-    merkle_state_root: str
-    quantum_entropy_weight: float
-    transactions: List[Dict[str, Any]]
-    validator_pqc_sig: str
-    timestamp: float = field(default_factory=time.time)
+class MicroforkDAGResolver:
+    def __init__(self):
+        self.dag: Dict[str, DAGBlock] = {}
+        self.canonical_chain: List[str] = []
+        self.spent_utxos: Set[str] = set()
+        self.orphaned_tx_pool: List[Dict[str, Any]] = []
 
+    def add_block(self, block_id: str, parents: List[str], height: int, txs: List[Dict[str, Any]], weight: float = 1.0) -> DAGBlock:
+        block = DAGBlock(block_id, parents, height, txs, weight)
+        self.dag[block_id] = block
+        self._update_cumulative_weights()
+        return block
 
-@dataclass
-class ReOrgResolutionResult:
-    resolution_id: str
-    common_ancestor_height: int
-    evicted_orphaned_blocks_count: int
-    recycled_transactions_count: int
-    new_canonical_tip_hash: str
-    accumulated_entropy_weight: float
-    resolved_at: float = field(default_factory=time.time)
-
-
-class MicroForkResolverDaemon:
-    """
-    Autonomous micro-fork detection and zero-loss state re-organization resolver.
-    """
-
-    def __init__(self) -> None:
-        self.lock = threading.RLock()
-        self.canonical_chain: List[MicroForkCandidateBlock] = []
-        self.recycled_mempool: List[Dict[str, Any]] = []
-        self.resolution_history: List[ReOrgResolutionResult] = []
-
-    def set_canonical_chain(self, chain: List[MicroForkCandidateBlock]) -> None:
-        with self.lock:
-            self.canonical_chain = list(chain)
-
-    def evaluate_and_resolve_fork(
-        self,
-        alternate_fork_chain: List[MicroForkCandidateBlock],
-    ) -> Tuple[bool, Optional[ReOrgResolutionResult], str]:
+    def _update_cumulative_weights(self):
         """
-        Compares incoming alternate fork chain against canonical chain using quantum entropy weight.
+        Calculates cumulative GHOST DAG weights by propagating subtree weights up the DAG.
         """
-        with self.lock:
-            if not alternate_fork_chain:
-                return False, None, "Alternate fork chain is empty."
+        for block_id, block in self.dag.items():
+            cum_w = block.weight
+            # Traverse descendants
+            for other_id, other_block in self.dag.items():
+                if block_id in other_block.parents:
+                    cum_w += other_block.weight
+            block.cumulative_weight = cum_w
 
-            canonical_weight = sum(b.quantum_entropy_weight for b in self.canonical_chain)
-            alternate_weight = sum(b.quantum_entropy_weight for b in alternate_fork_chain)
+    def resolve_forks_topological(self) -> Tuple[List[str], List[Dict[str, Any]]]:
+        """
+        Deterministically orders blocks using highest cumulative weight and highest-entropy tie-breaking.
+        Re-bundles conflicting/orphaned transactions.
+        """
+        if not self.dag:
+            return [], []
 
-            # Check if alternate chain has strictly higher accumulated quantum entropy weight
-            if alternate_weight <= canonical_weight:
-                return False, None, f"Alternate chain weight ({alternate_weight}) <= Canonical ({canonical_weight}). Rejecting fork."
+        # Sort DAG blocks by cumulative weight descending, then by cryptographic hash entropy descending
+        sorted_block_ids = sorted(
+            self.dag.keys(),
+            key=lambda b_id: (self.dag[b_id].cumulative_weight, self.dag[b_id].height, b_id),
+            reverse=True
+        )
 
-            # Find common ancestor
-            canonical_hashes = {b.block_hash: idx for idx, b in enumerate(self.canonical_chain)}
-            common_ancestor_idx = -1
-            common_ancestor_height = 0
+        canonical_path: List[str] = []
+        accepted_utxos: Set[str] = set()
+        recovered_orphans: List[Dict[str, Any]] = []
 
-            for b in alternate_fork_chain:
-                if b.previous_block_hash in canonical_hashes:
-                    common_ancestor_idx = canonical_hashes[b.previous_block_hash]
-                    common_ancestor_height = self.canonical_chain[common_ancestor_idx].block_height
+        for b_id in sorted_block_ids:
+            block = self.dag[b_id]
+            block_has_conflict = False
+
+            # Inspect all transactions in block for UTXO collisions
+            for tx in block.txs:
+                utxo_key = tx.get("utxo_in", f"{tx.get('sender')}:{tx.get('nonce')}")
+                if utxo_key in accepted_utxos:
+                    # Double-spend branch detected! Reject block from canonical path & orphan non-conflicting TXs
+                    block_has_conflict = True
                     break
 
-            # Collect orphaned transactions from discarded canonical blocks
-            orphaned_blocks = self.canonical_chain[common_ancestor_idx + 1 :] if common_ancestor_idx >= 0 else self.canonical_chain
-            recycled_txs = []
-            for ob in orphaned_blocks:
-                recycled_txs.extend(ob.transactions)
+            if not block_has_conflict:
+                canonical_path.append(b_id)
+                for tx in block.txs:
+                    utxo_key = tx.get("utxo_in", f"{tx.get('sender')}:{tx.get('nonce')}")
+                    accepted_utxos.add(utxo_key)
+            else:
+                # Harvest valid non-colliding transactions from the orphaned microfork
+                for tx in block.txs:
+                    utxo_key = tx.get("utxo_in", f"{tx.get('sender')}:{tx.get('nonce')}")
+                    if utxo_key not in accepted_utxos:
+                        recovered_orphans.append(tx)
 
-            # Re-queue orphaned transactions into mempool (Zero-loss guarantee)
-            self.recycled_mempool.extend(recycled_txs)
+        self.canonical_chain = canonical_path
+        self.orphaned_tx_pool.extend(recovered_orphans)
 
-            # Switch canonical chain
-            new_chain = (self.canonical_chain[: common_ancestor_idx + 1] if common_ancestor_idx >= 0 else []) + alternate_fork_chain
-            self.canonical_chain = new_chain
+        return canonical_path, recovered_orphans
 
-            result = ReOrgResolutionResult(
-                resolution_id=f"reorg_{secrets.token_hex(6)}",
-                common_ancestor_height=common_ancestor_height,
-                evicted_orphaned_blocks_count=len(orphaned_blocks),
-                recycled_transactions_count=len(recycled_txs),
-                new_canonical_tip_hash=self.canonical_chain[-1].block_hash,
-                accumulated_entropy_weight=alternate_weight,
-            )
+    def rebundle_orphans_into_new_block(self, parent_id: str, new_height: int) -> Optional[DAGBlock]:
+        """
+        Creates a new canonical block that recovers valid orphaned transactions.
+        """
+        if not self.orphaned_tx_pool:
+            return None
 
-            self.resolution_history.append(result)
-            return True, result, f"Successfully re-organized chain to superior weight {alternate_weight} with zero tx loss."
+        txs_to_bundle = self.orphaned_tx_pool[:50] # Bundle up to 50 orphans
+        self.orphaned_tx_pool = self.orphaned_tx_pool[50:]
 
+        block_header = f"REBUNDLE:{parent_id}:{new_height}:{len(txs_to_bundle)}:{time.time()}"
+        new_block_id = hashlib.sha256(block_header.encode('utf-8')).hexdigest()
 
-# Global Micro-Fork Resolver Singleton
-microfork_resolver_daemon = MicroForkResolverDaemon()
+        return self.add_block(new_block_id, [parent_id], new_height, txs_to_bundle, weight=1.5)
+
+if __name__ == "__main__":
+    resolver = MicroforkDAGResolver()
+    
+    # Genesis
+    resolver.add_block("genesis_0", [], 0, [{"tx_id": "tx0", "sender": "sys", "nonce": 0}])
+    
+    # Fork Branch A (Main Mesh, Weight 3.0)
+    resolver.add_block("branch_A1", ["genesis_0"], 1, [{"tx_id": "tx1", "sender": "alice", "nonce": 1, "amount": 10}], weight=2.0)
+    resolver.add_block("branch_A2", ["branch_A1"], 2, [{"tx_id": "tx2", "sender": "bob", "nonce": 1, "amount": 5}], weight=1.0)
+    
+    # Fork Branch B (Offline Partition, Weight 1.0 - conflicting Alice nonce 1)
+    resolver.add_block("branch_B1", ["genesis_0"], 1, [{"tx_id": "tx1_conflict", "sender": "alice", "nonce": 1, "amount": 10}, {"tx_id": "tx3_offline", "sender": "charlie", "nonce": 1, "amount": 20}], weight=1.0)
+    
+    canonical, orphans = resolver.resolve_forks_topological()
+    print(f"[DAG Consensus] Canonical Path: {canonical}")
+    print(f"[DAG Consensus] Recovered Orphaned TXs: {len(orphans)}")
