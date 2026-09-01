@@ -6,6 +6,7 @@ import zlib from 'zlib';
 import { execSync } from 'child_process';
 import { createServer as createViteServer } from 'vite';
 import { buildDebugApk } from './scripts/generate-apk.js';
+import { generateSignedApk } from './scripts/sign-apk.js';
 import { adminDb } from './server/firebaseAdmin.js';
 import { FieldValue } from 'firebase-admin/firestore';
 import http from 'http';
@@ -369,8 +370,22 @@ app.post('/api/build/apk', async (req, res) => {
   try {
     const distPath = path.resolve(process.cwd(), 'dist');
     const result = buildDebugApk(distPath);
+    // Also build and sign release
+    const signedResult = generateSignedApk('release', distPath);
     tokenLedger.mint('operator_alpha', 50, 'build');
     console.log(`[Tokens] Rewarded operator_alpha with 50 tokens for successful APK build`);
+    res.json({ success: true, ...result, signed: signedResult });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 3b. Dedicated Signed APK Build endpoint
+app.post('/api/build/signed-apk', async (req, res) => {
+  try {
+    const distPath = path.resolve(process.cwd(), 'dist');
+    const result = generateSignedApk('release', distPath);
+    tokenLedger.mint('operator_alpha', 100, 'signed_build');
     res.json({ success: true, ...result });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -381,10 +396,30 @@ app.post('/api/build/apk', async (req, res) => {
 app.get('/api/dist/download/debug.apk', (req, res) => {
   const apkPath = path.resolve(process.cwd(), 'dist', 'debug.apk');
   if (!fs.existsSync(apkPath)) {
-    // Generate immediately if not present
     buildDebugApk(path.resolve(process.cwd(), 'dist'));
   }
   res.setHeader('Content-Disposition', 'attachment; filename="debug.apk"');
+  res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+  res.sendFile(apkPath);
+});
+
+// 4b. Direct Download for /dist/signed-release.apk and app-release.apk
+app.get('/api/dist/download/signed-release.apk', (req, res) => {
+  const apkPath = path.resolve(process.cwd(), 'dist', 'signed-release.apk');
+  if (!fs.existsSync(apkPath)) {
+    generateSignedApk('release', path.resolve(process.cwd(), 'dist'));
+  }
+  res.setHeader('Content-Disposition', 'attachment; filename="signed-release.apk"');
+  res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+  res.sendFile(apkPath);
+});
+
+app.get('/api/dist/download/app-release.apk', (req, res) => {
+  const apkPath = path.resolve(process.cwd(), 'dist', 'app-release.apk');
+  if (!fs.existsSync(apkPath)) {
+    generateSignedApk('release', path.resolve(process.cwd(), 'dist'));
+  }
+  res.setHeader('Content-Disposition', 'attachment; filename="app-release.apk"');
   res.setHeader('Content-Type', 'application/vnd.android.package-archive');
   res.sendFile(apkPath);
 });

@@ -68,7 +68,7 @@ export const AndroidArtifactCard: React.FC<AndroidArtifactCardProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               id="rebuild-apk-direct-btn"
               onClick={onRebuildApk}
@@ -76,8 +76,18 @@ export const AndroidArtifactCard: React.FC<AndroidArtifactCardProps> = ({
               className="flex items-center space-x-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors"
             >
               <RefreshCw className={`h-4 w-4 text-emerald-400 ${loading ? 'animate-spin' : ''}`} />
-              <span>Rebuild debug.apk</span>
+              <span>Rebuild APK</span>
             </button>
+
+            <a
+              id="download-signed-apk-btn"
+              href="/api/dist/download/signed-release.apk"
+              download="signed-release.apk"
+              className="flex items-center space-x-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white px-5 py-2.5 rounded-xl font-semibold text-sm shadow-lg shadow-amber-900/30 transition-all cursor-pointer"
+            >
+              <ShieldCheck className="h-4 w-4" />
+              <span>Download Signed APK</span>
+            </a>
 
             <a
               id="download-debug-apk-btn"
@@ -86,7 +96,7 @@ export const AndroidArtifactCard: React.FC<AndroidArtifactCardProps> = ({
               className="flex items-center space-x-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-5 py-2.5 rounded-xl font-semibold text-sm shadow-lg shadow-emerald-900/30 transition-all cursor-pointer"
             >
               <Download className="h-4 w-4" />
-              <span>Download debug.apk</span>
+              <span>Download Debug APK</span>
             </a>
           </div>
         </div>
