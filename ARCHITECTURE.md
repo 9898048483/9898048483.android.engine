@@ -1,28 +1,94 @@
-# AI Secure Space - Master Security Architecture
+# 🏛️ AI Secure Space — Master Security & Native Enclave Architecture
 
-## Overview
-This document outlines the 40+ advanced cybersecurity and cryptographic subsystems engineered for the AI Secure Space Android Engine. The architecture bridges high-level Python AI logic with ultra-secure, hardware-backed C++ and Kotlin native layers.
+**Version**: 2.5.0-production  
+**Classification**: Enterprise Sovereign Security Architecture  
+**Target Runtimes**: Android Native (API 26–34), WebAuthn FIDO2, Node.js/Express, Python Chaquopy  
+**Author / Security Principal**: india9898048483@gmail.com  
 
-## 1. Hardware Security & Cryptography
-* **StrongBox TEE Key Manager:** Leverages Android's Titan M / TrustZone (`setIsStrongBoxBacked(true)`) to generate and store AES-256-GCM master keys. Cryptographic operations occur entirely within the secure silicon enclave.
-* **JNI Memory Sanitization:** Employs volatile memory barriers (`secure_bzero` / `explicit_bzero`) across the C++ JNI bridge to instantly purge plaintext and ciphertext buffers from RAM immediately after execution, mitigating cold-boot and heap-scanning attacks.
-* **Post-Quantum Cryptography (PQC):** Hybrid ML-KEM (Kyber) and classical ECC buffers for future-proof key encapsulation.
-* **Encrypted SQLCipher VFS Layer:** A low-level SQLite Virtual File System utilizing hardware AES-256 extensions, page-level key derivation, and GCM integrity tags to prevent offline database tampering.
+---
 
-## 2. Zero-Trust & Access Control
-* **Continuous Risk-Based Authentication:** An ambient state machine that calculates risk scores based on biometric confidence, network safety (e.g., Tor/Public Wi-Fi detection), and device posture. Dynamically triggers Step-Up Authentication or Enclave Lockdown.
-* **Remote Play Integrity Attestation:** Cloud-to-Mobile verification enforcing `MEETS_STRONG_INTEGRITY`. Validates bootloader locks, OS tampering, and server-generated nonces (preventing replay attacks) before releasing master keys.
-* **Honeypot Deception Layer:** Inotify-backed filesystem monitors watching decoy databases and master seeds. Unauthorized access triggers Panic Mode (silent key zeroization and session termination).
+## 1. Architectural Overview & Defense-in-Depth Model
 
-## 3. Network & Transport Security
-* **Enterprise PKI & Automated mTLS:** Zero-trust network transport wrapper supporting EST/SCEP enrollment, dynamic short-lived X.509 client certificate rotation, strict SPKI certificate pinning, and OCSP stapling.
-* **Tor V3 Onion Routing & Mesh:** Quantum-resistant mesh network topologies and Tor payload parsers for untraceable and highly resilient communications.
+The **AI Secure Space** is engineered around a four-tier defense-in-depth security model bridging high-level AI reasoning engines with hardware-isolated cryptographic coprocessors.
 
-## 4. System Isolation & Performance
-* **GPU Overlay Firewall:** Enforces `FLAG_SECURE` and Hardware DRM / TrustZone (`EGL_PROTECTED_CONTENT_EXT`) via OpenGL ES to prevent screen recording, tapjacking, and frame-buffer scraping.
-* **WASM Isolated Execution Engine:** Sandboxes third-party plugins using Wasmtime/Wasm3. Strictly enforces 1MB linear memory boundaries, denies WASI/POSIX syscalls, and meters CPU clock cycles (gas/fuel) to prevent infinite-loop DoS attacks.
-* **High-Performance Zero-Copy Memory Pool:** SPSC Lock-Free Ring Buffers using C++ `<atomic>` primitives and 64-byte cache-line alignment. Bridges natively to Python `ctypes` memoryviews to achieve 10M+ ops/sec with zero Garbage Collection overhead.
-* **Dynamic Cryptographic Governor:** Android BatteryManager hooks that dynamically scale native cryptography batch sizes based on thermal throttling, battery levels, and Doze mode to prevent device degradation.
+```text
++-------------------------------------------------------------------------+
+|                       Presentation & UI Layer                           |
+|      (React 18 + Tailwind CSS + Lucide Icons + WebAuthn FIDO2 Bridge)   |
++-------------------------------------------------------------------------+
+                                    |
+                                    v
++-------------------------------------------------------------------------+
+|                  Full-Stack Node/Express Gateway                        |
+|       (REST APIs, Token Ledger, Firebase Admin, SSE Event Stream)       |
++-------------------------------------------------------------------------+
+                                    |
+                                    v
++-------------------------------------------------------------------------+
+|                  Native Android Bridge (JNI & Chaquopy)                 |
+|   (StrongBox Keystore, BiometricPromptManager, C++ Crypto Bridge)       |
++-------------------------------------------------------------------------+
+                                    |
+                                    v
++-------------------------------------------------------------------------+
+|                  Hardware Root of Trust (Silicon Enclave)               |
+|      (Titan M2 / ARM TrustZone / StrongBox TEE / Secure Enclave)        |
++-------------------------------------------------------------------------+
+```
 
-## 5. DevSecOps & Resilience
-* **Automated Memory Chaos Fuzzing:** LibFuzzer and AddressSanitizer (ASAN) harnesses integrated into CI/CD. Mutates IPC/Tor payloads at thousands of executions per second to automatically detect and triage Heap-Buffer-Overflows and Use-After-Free vulnerabilities.
+---
+
+## 2. Hardware Security & Cryptographic Subsystems
+
+### 2.1 StrongBox TEE Key Management (`StrongBoxKeystore.kt`)
+- **Hardware Isolation**: Master private keys are generated directly inside dedicated secure hardware using `KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY).setIsStrongBoxBacked(true)`.
+- **Zero Key Extraction**: Private keys never enter Android OS userland memory or JVM heap; all ECDSA/RSA signature generations are calculated on-chip.
+- **Biometric Binding**: `setUserAuthenticationRequired(true)` binds key authorization directly to biometric success tickets valid for 0-second user confirmations.
+
+### 2.2 Volatile Memory Sanitization (JNI Bridge)
+- Employs volatile memory barriers (`explicit_bzero` / `secure_memzero`) across C++ native bridges. Plaintext buffers, temporary shared secrets, and unpadded payloads are immediately overwritten with pseudorandom entropy before memory deallocation, preventing cold-boot extraction and memory dump scraping.
+
+### 2.3 Post-Quantum Cryptography (PQC)
+- **Signatures**: Dual hybrid deployment of NIST FIPS 204 **ML-DSA-87** (Dilithium) alongside classical ECDSA P-256 for backward-compatible quantum resilience.
+- **Key Encapsulation**: NIST FIPS 203 **ML-KEM-1024** (Kyber) for post-quantum key exchange sessions.
+
+### 2.4 SQLCipher Encrypted Database & VFS
+- Page-level AES-256-GCM encryption with 256-bit PBKDF2 HMAC-SHA512 key derivation (64,000 iterations), protecting local wallet logs, offline pending transactions, and cache records against physical device forensic extraction.
+
+---
+
+## 3. Zero-Trust Access Control & Biometric Enforcement
+
+### 3.1 Continuous Risk-Based Authentication
+- Evaluates real-time threat signals:
+  1. Bootloader lock state (`MEETS_STRONG_INTEGRITY`).
+  2. Active network interface (Tor Onion routing vs. insecure Wi-Fi).
+  3. Biometric confidence score and sensor timestamp freshness.
+- Dynamically escalates authorization requirements or engages honeypot alarms upon anomalous telemetry.
+
+### 3.2 Anti-Tamper & Panic Shredder Mode
+- File system watchers monitor decoy vault directories. Unauthorized modification or debugging hooks immediately trigger the **Duress Shredder Engine**, which zeroes volatile master keys, drops authenticated sessions, and purges sensitive local tables.
+
+---
+
+## 4. Production Signed APK Pipeline
+
+The build system utilizes a zero-trust automated pipeline compiling native assets, classes.dex, resources, and cryptographic signing manifests:
+
+1. **V1 Signature Scheme (JAR Signing)**:
+   - Computes SHA-256 digests for all files into `META-INF/MANIFEST.MF`.
+   - Signs manifest digest with RSA-2048 private key into `META-INF/CERT.SF` and `META-INF/CERT.RSA`.
+2. **V2 & V3 Signature Schemes (APK Signing Block)**:
+   - Injects the binary APK Signing Block with ID `0x7109871a` (v2 Scheme) and ID `0xf05368c0` (v3 Scheme for Target SDK 34 rotation lineage) immediately before the Central Directory.
+   - Generates and writes verifiable SHA-256 and SHA-512 checksum files.
+
+---
+
+## 5. Security Checklist for Production Deployment
+
+- [x] Hardware-backed StrongBox KeyStore integration enabled.
+- [x] APK Signature Schemes v1, v2, and v3 validated.
+- [x] Biometric FIDO2 / WebAuthn hardware prompts active.
+- [x] Firestore security rules hardened with strict user authorization.
+- [x] Volatile memory scrubbing on native cryptographic boundaries.
+- [x] Offline-first deterministic ledger fallback active.

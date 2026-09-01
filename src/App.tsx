@@ -413,6 +413,31 @@ export default function App() {
 
       <SyncManager />
 
+      {/* Pro Action Hub Buttons */}
+      <div className="pro-action-hub">
+        <button 
+          id="btn-buy-pro-hub"
+          className="pro-btn btn-buy-pro" 
+          onClick={() => window.open('https://wa.me/919898048483', '_blank')}
+        >
+          ⚡ BUY NOW PRO (APPOINTMENT)
+        </button>
+        <button 
+          id="btn-donate-hub"
+          className="pro-btn btn-donate" 
+          onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLScJ7WjuxEXqdoSlUtxN7NQ8UeKpbEAeA9iIO-IXOmBmYzlLHQ/viewform?usp=sharing&ouid=116676179363878319046', '_blank')}
+        >
+          🪙 DONATION SYSTEM
+        </button>
+        <button 
+          id="btn-store-hub"
+          className="pro-btn btn-store" 
+          onClick={() => window.open('https://wa.me/c/919898048483', '_blank')}
+        >
+          🛒 OFFICIAL DIGITAL STORE
+        </button>
+      </div>
+
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950 py-6 text-xs text-slate-500 text-center">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
