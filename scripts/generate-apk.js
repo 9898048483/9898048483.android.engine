@@ -107,170 +107,22 @@ function computeCrc32(buf) {
   return (crc ^ 0xFFFFFFFF) >>> 0;
 }
 
-export function buildApkArtifact(buildMode = 'debug', targetDir = path.resolve(process.cwd(), 'dist')) {
-  console.log(`[CI/CD Build] Preparing output directory: ${targetDir} (Mode: ${buildMode})`);
-  
-  if (!fs.existsSync(targetDir)) {
-    fs.mkdirSync(targetDir, { recursive: true });
-  }
+import { buildHybridApk } from './bundle-hybrid-apk.js';
 
-  const isRelease = buildMode.toLowerCase() === 'release';
-  const artifactName = isRelease ? 'release.apk' : 'debug.apk';
-  const apkPath = path.join(targetDir, artifactName);
-
-  const manifestXml = `<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="ai.secure.space.touchless"
-    android:versionCode="250"
-    android:versionName="2.5.0-production">
-
-    <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="34" />
-
-    <!-- Prompt 15 Target SDK 34 Permissions -->
-    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
-    <uses-permission android:name="android.permission.USE_FINGERPRINT" />
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-
-    <application
-        android:allowBackup="false"
-        android:icon="@mipmap/ic_launcher"
-        android:label="AI Secure Space"
-        android:theme="@style/Theme.SecureSpace"
-        android:extractNativeLibs="true"
-        android:networkSecurityConfig="@xml/network_security_config">
-        
-        <activity
-            android:name="org.kivy.android.PythonActivity"
-            android:exported="true"
-            android:launchMode="singleTask"
-            android:screenOrientation="portrait">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-
-        <service
-            android:name="org.aisecure.service.ZeroTouchBatteryDaemon"
-            android:foregroundServiceType="specialUse"
-            android:exported="false" />
-    </application>
-</manifest>`;
-
-  const certRsa = Buffer.concat([
-    Buffer.from('-----BEGIN CERTIFICATE-----\nMIIDXTCCAkWgAwIBAgIU'),
-    crypto.randomBytes(64),
-    Buffer.from('\n-----END CERTIFICATE-----')
-  ]);
-
-  const dexMagic = Buffer.from([0x64, 0x65, 0x78, 0x0a, 0x30, 0x33, 0x39, 0x00]); // dex\n039\0
-  const dexHeader = Buffer.concat([dexMagic, crypto.randomBytes(104), Buffer.from('Lorg/kivy/android/PythonActivity;'), Buffer.alloc(1024, 0x5a)]);
-
-  const libIpcSo = Buffer.concat([
-    Buffer.from([0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x00]), // ELF 64-bit
-    Buffer.from('LIBNATIVE_IPC_FIREWALL_NDK_R25B_STACK_CANARY_ARM64_SO_PEERCRED'),
-    Buffer.alloc(2048, 0xcc)
-  ]);
-
-  const torArm64 = Buffer.concat([
-    Buffer.from([0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x00]),
-    Buffer.from('TOR_V3_DAEMON_ARM64_V8A_EPHEMERAL_STREAM_ISOLATED'),
-    Buffer.alloc(4096, 0x90)
-  ]);
-
-  const torArmv7 = Buffer.concat([
-    Buffer.from([0x7f, 0x45, 0x4c, 0x46, 0x01, 0x01, 0x01, 0x00]),
-    Buffer.from('TOR_V3_DAEMON_ARMEABI_V7A_EPHEMERAL_STREAM_ISOLATED'),
-    Buffer.alloc(4096, 0x90)
-  ]);
-
-  const torX86 = Buffer.concat([
-    Buffer.from([0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x00]),
-    Buffer.from('TOR_V3_DAEMON_X86_64_EPHEMERAL_STREAM_ISOLATED'),
-    Buffer.alloc(4096, 0x90)
-  ]);
-
-  const entries = [
-    { name: 'AndroidManifest.xml', data: manifestXml },
-    { name: 'classes.dex', data: dexHeader },
-    { name: 'resources.arsc', data: Buffer.from('RES_ARSC_HEADER_TABLE_STRING_POOL_STYLE_MAP_DATA') },
-    { name: 'META-INF/MANIFEST.MF', data: `Manifest-Version: 1.0\nCreated-By: AI Secure Space Buildozer Pipeline 2.5.0\nBuilt-By: DevSecOps-Engineer\n` },
-    { name: 'META-INF/CERT.SF', data: `Signature-Version: 1.0\nSHA-256-Digest-Manifest: ${crypto.randomBytes(32).toString('base64')}\n` },
-    { name: 'META-INF/CERT.RSA', data: certRsa },
-    { name: 'lib/arm64-v8a/libnative_ipc_firewall.so', data: libIpcSo },
-    { name: 'assets/tor/tor-arm64', data: torArm64 },
-    { name: 'assets/tor/tor-armv7', data: torArmv7 },
-    { name: 'assets/tor/tor-x86_64', data: torX86 },
-    { name: 'assets/buildozer.spec', data: fs.readFileSync(path.join(process.cwd(), 'android/buildozer.spec'), 'utf-8') }
-  ];
-
-  const apkZipBuffer = createZipBuffer(entries);
-  fs.writeFileSync(apkPath, apkZipBuffer);
-
-  // Also maintain debug.apk if release is built so both are accessible
-  if (isRelease) {
-    const debugPath = path.join(targetDir, 'debug.apk');
-    if (!fs.existsSync(debugPath)) {
-      fs.writeFileSync(debugPath, apkZipBuffer);
-    }
-  } else {
-    // Also mirror to debug.apk
-    const releasePath = path.join(targetDir, 'release.apk');
-    if (!fs.existsSync(releasePath)) {
-      fs.writeFileSync(releasePath, apkZipBuffer);
-    }
-  }
-
-  const sha256Hash = crypto.createHash('sha256').update(apkZipBuffer).digest('hex');
-  const sha512Hash = crypto.createHash('sha512').update(apkZipBuffer).digest('hex');
-  const stats = fs.statSync(apkPath);
-
-  fs.writeFileSync(`${apkPath}.sha256`, `${sha256Hash}  ${artifactName}\n`);
-  fs.writeFileSync(`${apkPath}.sha512`, `${sha512Hash}  ${artifactName}\n`);
-
-  console.log(`[CI/CD Build Success] Generated /dist/${artifactName} (${stats.size} bytes)`);
-  console.log(`[CI/CD Integrity] SHA256: ${sha256Hash}`);
-
-  return {
-    success: true,
-    artifactPath: `/dist/${artifactName}`,
-    fullPath: apkPath,
-    size: stats.size,
-    sha256: sha256Hash,
-    sha512: sha512Hash,
-    manifest: {
-      packageName: 'ai.securespace.securespaceclient',
-      targetSdk: '34'
-    }
-  };
+export function buildApkArtifact(buildMode = 'release', targetDir) {
+  return buildHybridApk();
 }
 
-export function buildDebugApk(targetDir = path.resolve(process.cwd(), 'dist')) {
-  return buildApkArtifact('debug', targetDir);
-}
-
-// Handle direct command line execution
-const args = process.argv.slice(2);
-let mode = 'debug';
-for (const arg of args) {
-  if (arg.startsWith('--mode=')) {
-    mode = arg.split('=')[1];
-  }
+export function buildDebugApk(targetDir) {
+  return buildHybridApk();
 }
 
 if (process.argv[1] && process.argv[1].endsWith('generate-apk.js')) {
   try {
-    buildApkArtifact(mode);
+    buildHybridApk();
   } catch (e) {
     console.error('Failed to generate APK:', e);
     process.exit(1);
   }
 }
+

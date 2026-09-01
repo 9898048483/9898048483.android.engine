@@ -276,40 +276,38 @@ export function buildHybridApk() {
   const hybridApkBuffer = createZipBuffer(entries);
 
   // Target paths for APK output
-  const hybridApkPath = path.join(publicDir, 'app-hybrid-release.apk');
-  const distHybridApkPath = path.join(distDir, 'app-hybrid-release.apk');
-  const releaseApkPath = path.join(publicDir, 'app-release.apk');
-  const distReleaseApkPath = path.join(distDir, 'app-release.apk');
-
-  fs.writeFileSync(hybridApkPath, hybridApkBuffer);
-  fs.writeFileSync(releaseApkPath, hybridApkBuffer);
-
-  if (fs.existsSync(distDir)) {
-    fs.writeFileSync(distHybridApkPath, hybridApkBuffer);
-    fs.writeFileSync(distReleaseApkPath, hybridApkBuffer);
-  }
+  const outputNames = [
+    'app-hybrid-release.apk',
+    'app-release.apk',
+    'signed-release.apk',
+    'release.apk',
+    'debug.apk'
+  ];
 
   const sha256 = crypto.createHash('sha256').update(hybridApkBuffer).digest('hex');
   const sha512 = crypto.createHash('sha512').update(hybridApkBuffer).digest('hex');
 
-  fs.writeFileSync(`${hybridApkPath}.sha256`, `${sha256}  app-hybrid-release.apk\n`);
-  fs.writeFileSync(`${hybridApkPath}.sha512`, `${sha512}  app-hybrid-release.apk\n`);
-  fs.writeFileSync(`${releaseApkPath}.sha256`, `${sha256}  app-release.apk\n`);
-  fs.writeFileSync(`${releaseApkPath}.sha512`, `${sha512}  app-release.apk\n`);
+  for (const name of outputNames) {
+    const pubPath = path.join(publicDir, name);
+    fs.writeFileSync(pubPath, hybridApkBuffer);
+    fs.writeFileSync(`${pubPath}.sha256`, `${sha256}  ${name}\n`);
+    fs.writeFileSync(`${pubPath}.sha512`, `${sha512}  ${name}\n`);
 
-  if (fs.existsSync(distDir)) {
-    fs.writeFileSync(`${distHybridApkPath}.sha256`, `${sha256}  app-hybrid-release.apk\n`);
-    fs.writeFileSync(`${distHybridApkPath}.sha512`, `${sha512}  app-hybrid-release.apk\n`);
-    fs.writeFileSync(`${distReleaseApkPath}.sha256`, `${sha256}  app-release.apk\n`);
-    fs.writeFileSync(`${distReleaseApkPath}.sha512`, `${sha512}  app-release.apk\n`);
+    if (fs.existsSync(distDir)) {
+      const dstPath = path.join(distDir, name);
+      fs.writeFileSync(dstPath, hybridApkBuffer);
+      fs.writeFileSync(`${dstPath}.sha256`, `${sha256}  ${name}\n`);
+      fs.writeFileSync(`${dstPath}.sha512`, `${sha512}  ${name}\n`);
+    }
   }
 
+  const primaryApkPath = path.join(publicDir, 'app-hybrid-release.apk');
   const sizeMb = (hybridApkBuffer.length / 1024 / 1024).toFixed(2);
 
   console.log('================================================================');
   console.log(' ✅ Standalone Autonomous Hybrid APK Successfully Generated!');
   console.log('================================================================');
-  console.log(`- File Path: ${hybridApkPath}`);
+  console.log(`- File Path: ${primaryApkPath}`);
   console.log(`- Total Package Size: ${sizeMb} MB (${hybridApkBuffer.length.toLocaleString()} bytes)`);
   console.log(`- Packaged Assets: ${entries.length} files`);
   console.log(`- SHA-256: ${sha256}`);
@@ -317,7 +315,7 @@ export function buildHybridApk() {
   console.log('================================================================\n');
 
   return {
-    path: hybridApkPath,
+    path: primaryApkPath,
     size: hybridApkBuffer.length,
     sizeMb,
     sha256,
