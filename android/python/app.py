@@ -30,6 +30,11 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 try:
+    from keystore_bridge import strongbox_jni_bridge
+except ImportError:
+    strongbox_jni_bridge = None
+
+try:
     from sas_crypto import SASGenerator
 except ImportError:
     # Fallback if not found in python path
@@ -544,6 +549,14 @@ class AsyncFastApiDispatcher:
                 "detail": "Invalid, expired, or missing HTTP Bearer token in Authorization header",
                 "status_code": 401
             }
+
+        if path == "/api/v1/auth/sign_biometric" and method == "POST":
+            payload = (body or {}).get("payload", "").encode('utf-8')
+            if strongbox_jni_bridge:
+                signature = strongbox_jni_bridge.sign_transaction_with_biometrics(payload)
+                return 200, {"signature": base64.b64encode(signature).decode('utf-8')}
+            else:
+                return 500, {"detail": "StrongBox JNI Bridge not available"}
 
         if path == "/api/v1/crypto/encrypt" and method == "POST":
             pt = (body or {}).get("plaintext", "")
