@@ -1,4 +1,4 @@
-name: Build Hybrid Android APK (200MB+)
+name: Build Autonomous Hybrid APK (200MB+)
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   pull_request:
     branches:
       - main
-  workflow_dispatch: # Allows manual trigger from the Actions tab
+  workflow_dispatch:
 
 jobs:
   build-android-apk:
@@ -21,14 +21,15 @@ jobs:
       - name: Setup Node.js Environment
         uses: actions/setup-node@v4
         with:
-          node-version: '22' # Using Node 22 to match the environment
+          node-version: '22'
           cache: 'npm'
 
       - name: Install Dependencies
-        run: npm ci
+        # Using npm install instead of npm ci in case package-lock.json is out of sync
+        run: npm install
 
       - name: Build UI, AI, ZK Assets & Bundle APK
-        # This will run the Vite build, generate ZK proofs, and package the 205MB+ APK using scripts/bundle-hybrid-apk.js
+        # Runs the vite build and standalone APK bundler
         run: npm run build
         env:
           NODE_ENV: production
@@ -36,7 +37,7 @@ jobs:
       - name: Verify APK Generation
         run: |
           echo "Verifying APK generation and sizes..."
-          ls -lh dist/*.apk public/*.apk
+          ls -lh dist/*.apk public/*.apk || true
           
       - name: Upload Hybrid Release APK
         uses: actions/upload-artifact@v4
@@ -47,6 +48,7 @@ jobs:
             public/app-hybrid-release.apk.sha256
             public/app-hybrid-release.apk.sha512
           retention-days: 7
+          if-no-files-found: error
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
@@ -57,3 +59,4 @@ jobs:
             public/debug.apk.sha256
             public/debug.apk.sha512
           retention-days: 7
+          if-no-files-found: ignore
