@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build && node scripts/generate_zk_artifacts.js && node scripts/bundle-hybrid-apk.js && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "build": "vite build",
     "start": "node dist/server.cjs",
     "build:apk": "node scripts/bundle-hybrid-apk.js",
     "build:hybrid-apk": "node scripts/bundle-hybrid-apk.js",
