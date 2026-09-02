@@ -217,8 +217,8 @@ export const PipelineDashboard: React.FC<PipelineDashboardProps> = ({
               <div className="flex items-center space-x-2.5">
                 <Smartphone className="h-5 w-5 text-emerald-400" />
                 <div>
-                  <div className="text-xs font-semibold text-emerald-300">debug.apk generated in /dist</div>
-                  <div className="text-[11px] text-slate-400 font-mono">Size: {(pipeline.apkInfo.size / 1024).toFixed(1)} KB</div>
+                  <div className="text-xs font-semibold text-emerald-300">app-hybrid-release.apk generated in /dist</div>
+                  <div className="text-[11px] text-emerald-400/90 font-mono font-semibold">Size: {pipeline.apkInfo.size > 1024 * 1024 ? `${(pipeline.apkInfo.size / (1024 * 1024)).toFixed(2)} MB` : `${(pipeline.apkInfo.size / 1024).toFixed(1)} KB`}</div>
                 </div>
               </div>
               <button

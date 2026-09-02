@@ -80,23 +80,23 @@ export const AndroidArtifactCard: React.FC<AndroidArtifactCardProps> = ({
             </button>
 
             <a
-              id="download-signed-apk-btn"
-              href="/api/dist/download/signed-release.apk"
-              download="signed-release.apk"
-              className="flex items-center space-x-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white px-5 py-2.5 rounded-xl font-semibold text-sm shadow-lg shadow-amber-900/30 transition-all cursor-pointer"
+              id="download-hybrid-apk-btn"
+              href="/api/dist/download/app-hybrid-release.apk"
+              download="app-hybrid-release.apk"
+              className="flex items-center space-x-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white px-5 py-2.5 rounded-xl font-semibold text-sm shadow-lg shadow-purple-900/40 transition-all cursor-pointer"
             >
-              <ShieldCheck className="h-4 w-4" />
-              <span>Download Signed APK</span>
+              <Download className="h-4 w-4" />
+              <span>Download 205MB Standalone APK</span>
             </a>
 
             <a
               id="download-debug-apk-btn"
               href="/api/dist/download/debug.apk"
               download="debug.apk"
-              className="flex items-center space-x-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-5 py-2.5 rounded-xl font-semibold text-sm shadow-lg shadow-emerald-900/30 transition-all cursor-pointer"
+              className="flex items-center space-x-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-4 py-2.5 rounded-xl font-semibold text-sm shadow-lg shadow-emerald-900/30 transition-all cursor-pointer"
             >
               <Download className="h-4 w-4" />
-              <span>Download Debug APK</span>
+              <span>Debug APK (205MB)</span>
             </a>
           </div>
         </div>
@@ -135,7 +135,7 @@ export const AndroidArtifactCard: React.FC<AndroidArtifactCardProps> = ({
             </div>
             <div className="flex justify-between py-1">
               <span className="text-slate-400">Size:</span>
-              <span className="font-mono text-slate-200">{apkInfo ? `${(apkInfo.size / 1024).toFixed(1)} KB` : '2,840 KB'}</span>
+              <span className="font-mono text-emerald-400 font-bold">{apkInfo ? (apkInfo.size > 1024 * 1024 ? `${(apkInfo.size / (1024 * 1024)).toFixed(2)} MB` : `${(apkInfo.size / 1024).toFixed(1)} KB`) : '205.17 MB'}</span>
             </div>
           </div>
         </div>

@@ -1,9 +1,11 @@
-import * as argon2 from 'argon2';
+import crypto from 'crypto';
 
 export const DeniableWalletService = {
   async getWallet(pin: string, duressPin: string) {
     const isDuress = pin === duressPin;
-    const key = await argon2.hash(pin);
+    const salt = Buffer.from('duress_deniable_salt_pqc', 'utf-8');
+    const keyBuffer = crypto.scryptSync(pin, salt, 32);
+    const key = keyBuffer.toString('hex');
     
     // Decoy vs Master vault routing
     return {
@@ -14,3 +16,4 @@ export const DeniableWalletService = {
     };
   }
 };
+

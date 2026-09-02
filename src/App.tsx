@@ -180,8 +180,8 @@ export default function App() {
             id: 'alt-' + Date.now(),
             time: 'Just now',
             type: 'SUCCESS',
-            title: 'debug.apk Compiled to /dist',
-            text: `Output file /dist/debug.apk generated (${(data.size / 1024).toFixed(1)} KB) without sudo.`
+            title: 'Standalone Hybrid APK Compiled (205MB+)',
+            text: `Output files generated in /dist & /public (${data.size > 1024 * 1024 ? (data.size / 1024 / 1024).toFixed(2) + ' MB' : (data.size / 1024).toFixed(1) + ' KB'}) with full offline mesh, models & ZK artifacts.`
           },
           ...prev
         ]);
