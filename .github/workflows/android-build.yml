@@ -1,4 +1,4 @@
-name: Build Autonomous Hybrid APK (200MB+)
+name: Build Real Capacitor Android APK
 
 on:
   push:
@@ -11,12 +11,18 @@ on:
 
 jobs:
   build-android-apk:
-    name: Build & Package Autonomous APK
+    name: Build Capacitor Android App
     runs-on: ubuntu-latest
     
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
       - name: Setup Node.js Environment
         uses: actions/setup-node@v4
@@ -25,38 +31,26 @@ jobs:
           cache: 'npm'
 
       - name: Install Dependencies
-        # Using npm install instead of npm ci in case package-lock.json is out of sync
         run: npm install
 
-      - name: Build UI, AI, ZK Assets & Bundle APK
-        # Runs the vite build and standalone APK bundler
+      - name: Build Web App
         run: npm run build
         env:
           NODE_ENV: production
 
-      - name: Verify APK Generation
+      - name: Sync Web Assets to Android
+        run: npx cap sync android
+
+      - name: Build Android APK with Gradle
         run: |
-          echo "Verifying APK generation and sizes..."
-          ls -lh dist/*.apk public/*.apk || true
-          
-      - name: Upload Hybrid Release APK
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload Capacitor APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-hybrid-release-apk
-          path: |
-            public/app-hybrid-release.apk
-            public/app-hybrid-release.apk.sha256
-            public/app-hybrid-release.apk.sha512
+          name: ai-secure-space-capacitor-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 7
           if-no-files-found: error
-
-      - name: Upload Debug APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: debug-apk
-          path: |
-            public/debug.apk
-            public/debug.apk.sha256
-            public/debug.apk.sha512
-          retention-days: 7
-          if-no-files-found: ignore
