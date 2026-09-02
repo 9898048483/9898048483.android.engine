@@ -1,150 +1,54 @@
-plugins {
-    id 'com.android.application'
-    id 'org.jetbrains.kotlin.android'
-}
+apply plugin: 'com.android.application'
 
 android {
-    namespace 'com.quantum'
-    compileSdk 34
-
+    namespace = "ai.secure.space"
+    compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.quantum"
-        minSdk 28
-        targetSdk 34
-        versionCode 2
-        versionName "2.0.0"
-        multiDexEnabled true
-
+        applicationId "ai.secure.space"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        
-        ndk {
-            abiFilters "arm64-v8a", "armeabi-v7a", "x86_64"
-        }
-
-        externalNativeBuild {
-            cmake {
-                cppFlags "-std=c++20 -O3 -fstack-protector-strong -D_FORTIFY_SOURCE=2"
-                arguments "-DANDROID_STL=c++_shared", "-DANDROID_TOOLCHAIN=clang"
-            }
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
-
-    externalNativeBuild {
-        cmake {
-            path file("../CMakeLists.txt")
-            version "3.22.1"
-        }
-    }
-
-    signingConfigs {
-        release {
-            // Configurable via gradle.properties or environment variables in CI/CD
-            storeFile file("release.keystore")
-            storePassword System.getenv("KEYSTORE_PASSWORD") ?: "quantum9898048483"
-            keyAlias System.getenv("KEY_ALIAS") ?: "quantum_release_key"
-            keyPassword System.getenv("KEY_PASSWORD") ?: "quantum9898048483"
-        }
-    }
-
     buildTypes {
         release {
             minifyEnabled false
-            shrinkResources false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
-        }
-        debug {
-            applicationIdSuffix ".debug"
-            debuggable true
-        }
-    }
-
-    sourceSets {
-        main {
-            assets.srcDirs = ['src/main/assets']
-            jniLibs.srcDirs = ['src/main/jniLibs']
-        }
-    }
-
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
-    }
-    
-    kotlinOptions {
-        jvmTarget = '17'
-    }
-
-    packagingOptions {
-        resources {
-            excludes += [
-                '/META-INF/{AL2.0,LGPL2.1}',
-                '/META-INF/DEPENDENCIES',
-                '/META-INF/LICENSE',
-                '/META-INF/LICENSE.txt',
-                '/META-INF/license.txt',
-                '/META-INF/NOTICE',
-                '/META-INF/NOTICE.txt',
-                '/META-INF/notice.txt',
-                '/META-INF/INDEX.LIST'
-            ]
-        }
-        jniLibs {
-            useLegacyPackaging = true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
 }
 
-// Gradle task to sync production React/Vite assets into Android assets
-tasks.register('syncWebAssets', Copy) {
-    def distDir = file('../../dist')
-    def assetsDistDir = file('src/main/assets/dist')
-    
-    from distDir
-    into assetsDistDir
-    
-    doFirst {
-        println "Syncing React web bundle from ${distDir.absolutePath} to ${assetsDistDir.absolutePath}"
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
     }
-}
-
-// Gradle task to verify and bundle embedded AI models
-tasks.register('bundleAiModels') {
-    doLast {
-        def modelsDir = file('src/main/assets/models')
-        if (!modelsDir.exists()) {
-            modelsDir.mkdirs()
-        }
-        println "Embedded AI Models Asset Directory verified: ${modelsDir.absolutePath}"
-    }
-}
-
-// Gradle task to verify and bundle ZK ptau and WASM circuits
-tasks.register('bundleZkArtifacts') {
-    doLast {
-        def zkDir = file('src/main/assets/zk')
-        if (!zkDir.exists()) {
-            zkDir.mkdirs()
-        }
-        println "Zero-Knowledge Circuit Assets Directory verified: ${zkDir.absolutePath}"
-    }
-}
-
-project.afterEvaluate {
-    tasks.findByName('preBuild')?.dependsOn('syncWebAssets', 'bundleAiModels', 'bundleZkArtifacts')
 }
 
 dependencies {
-    implementation 'androidx.multidex:multidex:2.0.1'
-    implementation 'androidx.core:core-ktx:1.12.0'
-    implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.google.android.material:material:1.11.0'
-    implementation 'androidx.biometric:biometric:1.1.0'
-    implementation 'androidx.webkit:webkit:1.10.0'
-    implementation 'androidx.activity:activity-ktx:1.8.2'
-    implementation 'androidx.fragment:fragment-ktx:1.6.2'
-    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
-    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
 }
 
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

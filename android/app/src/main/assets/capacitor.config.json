@@ -1,0 +1,6 @@
+{
+	"appId": "ai.secure.space",
+	"appName": "AI Secure Space",
+	"webDir": "dist",
+	"bundledWebRuntime": false
+}

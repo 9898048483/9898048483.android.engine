@@ -1,2 +1,0 @@
-BIP39_SEED=abandon ability able about above absent absorb abstract absurd abuse access accident
-WARNING: DO NOT DELETE
