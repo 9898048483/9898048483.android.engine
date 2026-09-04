@@ -12,7 +12,7 @@ import { buildHybridApk } from './bundle-hybrid-apk.js';
  */
 
 export function generateSignedApk(mode = 'release', targetDir = path.resolve(process.cwd(), 'dist')) {
-  const result = buildHybridApk();
+  const result = buildHybridApk({ mode: 'release' });
   return {
     success: true,
     packageName: 'com.quantum.aisecurespace',
@@ -20,8 +20,11 @@ export function generateSignedApk(mode = 'release', targetDir = path.resolve(pro
     minSdk: 26,
     signatureSchemes: ['v1 (JAR)', 'v2 (APK Signature Scheme v2)', 'v3 (Target SDK 34 Scheme)'],
     artifacts: [
-      '/dist/app-hybrid-release.apk',
-      '/dist/debug.apk'
+      '/dist/signed-release.apk',
+      '/dist/app-release.apk',
+      '/dist/release.apk',
+      '/dist/debug.apk',
+      '/dist/app-hybrid-release.apk'
     ],
     sha256: result.sha256,
     sha512: result.sha512,

@@ -7,6 +7,7 @@
     "dev": "tsx server.ts",
     "build": "vite build",
     "start": "node dist/server.cjs",
+    "build:local-apk": "bash ./build_local_apk.sh",
     "build:apk": "node scripts/bundle-hybrid-apk.js",
     "build:hybrid-apk": "node scripts/bundle-hybrid-apk.js",
     "build:full-apk": "vite build && node scripts/generate_zk_artifacts.js && node scripts/bundle-hybrid-apk.js",

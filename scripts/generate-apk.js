@@ -110,18 +110,38 @@ function computeCrc32(buf) {
 import { buildHybridApk } from './bundle-hybrid-apk.js';
 
 export function buildApkArtifact(buildMode = 'release', targetDir) {
-  return buildHybridApk();
+  return buildHybridApk({ mode: buildMode });
 }
 
 export function buildDebugApk(targetDir) {
-  return buildHybridApk();
+  return buildHybridApk({ mode: 'debug' });
 }
 
+export function buildReleaseApk(targetDir) {
+  return buildHybridApk({ mode: 'release' });
+}
+
+// CLI Execution Handler
 if (process.argv[1] && process.argv[1].endsWith('generate-apk.js')) {
   try {
-    buildHybridApk();
+    const args = process.argv.slice(2);
+    let mode = 'all';
+    for (const arg of args) {
+      if (arg.startsWith('--mode=')) {
+        mode = arg.split('=')[1];
+      } else if (['debug', 'release', 'hybrid', 'all', 'fast'].includes(arg)) {
+        mode = arg;
+      }
+    }
+    console.log(`[AI Secure Space Packager] Invoking standalone local APK compilation with mode: ${mode}`);
+    const result = buildHybridApk({ mode });
+    console.log(`\n[+] Local APK build finished successfully.`);
+    console.log(`    Primary Artifact: ${result.path}`);
+    console.log(`    Size: ${result.sizeMb} MB`);
+    console.log(`    SHA-256: ${result.sha256}\n`);
+    process.exit(0);
   } catch (e) {
-    console.error('Failed to generate APK:', e);
+    console.error('Failed to generate APK locally:', e);
     process.exit(1);
   }
 }

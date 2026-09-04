@@ -6,3 +6,11 @@ coverage/
 *.log
 .env*
 !.env.example
+*.apk
+*.bin
+*.ptau
+*.db
+*.dex
+assets/models/
+assets/data/
+assets/zk/*.ptau
